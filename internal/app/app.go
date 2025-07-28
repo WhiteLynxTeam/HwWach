@@ -29,11 +29,11 @@ type App struct {
 	minioSvc storage.Storage
 	router   *gin.Engine
 
-	authH   *handlers.AuthHandler
-	userH   *handlers.UserHandler
-	deviceH *handlers.DeviceHandler
-	photoH  *handlers.PhotoHandler
-	reqH    *handlers.RequestHandler
+	authH   handlers.AuthHandler
+	userH   handlers.UserHandler
+	deviceH handlers.DeviceHandler
+	photoH  handlers.PhotoHandler
+	reqH    handlers.RequestHandler
 }
 
 func NewApp() (*App, error) {

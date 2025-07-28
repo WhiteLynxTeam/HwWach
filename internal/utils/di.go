@@ -10,11 +10,11 @@ import (
 )
 
 type DI struct {
-	AuthHandler    *handlers.AuthHandler
-	UserHandler    *handlers.UserHandler
-	DeviceHandler  *handlers.DeviceHandler
-	PhotoHandler   *handlers.PhotoHandler
-	RequestHandler *handlers.RequestHandler
+	AuthHandler    handlers.AuthHandler
+	UserHandler    handlers.UserHandler
+	DeviceHandler  handlers.DeviceHandler
+	PhotoHandler   handlers.PhotoHandler
+	RequestHandler handlers.RequestHandler
 }
 
 func InitializeDI(

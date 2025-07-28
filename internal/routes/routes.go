@@ -8,11 +8,11 @@ import (
 
 func SetupRoutes(
 	r *gin.Engine,
-	authHandler *handlers.AuthHandler,
-	userHandler *handlers.UserHandler,
-	deviceHandler *handlers.DeviceHandler,
-	photoHandler *handlers.PhotoHandler,
-	requestHandler *handlers.RequestHandler,
+	authHandler handlers.AuthHandler,
+	userHandler handlers.UserHandler,
+	deviceHandler handlers.DeviceHandler,
+	photoHandler handlers.PhotoHandler,
+	requestHandler handlers.RequestHandler,
 	jwtMiddleware gin.HandlerFunc,
 ) {
 	auth := r.Group("/auth")
