@@ -17,3 +17,27 @@ type UserRepo interface {
 type userRepo struct {
 	db *gorm.DB
 }
+
+func NewUserRepo(db *gorm.DB) UserRepo {
+	return &userRepo{db: db}
+}
+
+func (u2 userRepo) Create(ctx context.Context, u *models.User) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (u2 userRepo) FindByLogin(ctx context.Context, login string) (*models.User, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (u2 userRepo) Update(ctx context.Context, u *models.User) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (u2 userRepo) Delete(ctx context.Context, id uint) error {
+	//TODO implement me
+	panic("implement me")
+}
