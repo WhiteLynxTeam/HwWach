@@ -1,9 +1,6 @@
 package repository
 
-import (
-	"gorm.io/gorm"
-)
-
+/*
 type baseRepo struct {
 	db *gorm.DB
 }
@@ -19,6 +16,8 @@ type deviceRepo struct {
 type photoRepo struct {
 	baseRepo
 }
+
 type requestRepo struct {
 	baseRepo
 }
+*/

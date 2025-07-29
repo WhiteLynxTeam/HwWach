@@ -14,10 +14,12 @@ type UserRepo interface {
 	Delete(ctx context.Context, id uint) error
 }
 
+type userRepo struct {
+	db *gorm.DB
+}
+
 func NewUserRepo(db *gorm.DB) UserRepo {
-	return &userRepo{
-		baseRepo: baseRepo{db: db},
-	}
+	return &userRepo{db: db}
 }
 
 func (u2 userRepo) Create(ctx context.Context, u *models.User) error {

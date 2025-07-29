@@ -16,10 +16,12 @@ type PhotoRepo interface {
 	Delete(ctx context.Context, id uint) error
 }
 
+type photoRepo struct {
+	db *gorm.DB
+}
+
 func NewPhotoRepo(db *gorm.DB) PhotoRepo {
-	return &photoRepo{
-		baseRepo: baseRepo{db: db},
-	}
+	return &photoRepo{db: db}
 }
 
 func (p photoRepo) Create(ctx context.Context, photo *models.Photo) error {

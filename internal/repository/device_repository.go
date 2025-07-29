@@ -18,10 +18,12 @@ type DeviceRepo interface {
 	ListRequests(ctx context.Context, deviceID uint) ([]*models.Request, error)
 }
 
+type deviceRepo struct {
+	db *gorm.DB
+}
+
 func NewDeviceRepo(db *gorm.DB) DeviceRepo {
-	return &deviceRepo{
-		baseRepo: baseRepo{db: db},
-	}
+	return &deviceRepo{db: db}
 }
 
 func (d deviceRepo) Create(ctx context.Context, dev *models.Device) error {

@@ -15,10 +15,12 @@ type RequestRepo interface {
 	UpdateStatus(ctx context.Context, id uint, newStatus string) error
 }
 
+type requestRepo struct {
+	db *gorm.DB
+}
+
 func NewRequestRepo(db *gorm.DB) RequestRepo {
-	return &requestRepo{
-		baseRepo: baseRepo{db: db},
-	}
+	return &requestRepo{db: db}
 }
 
 func (r requestRepo) Create(ctx context.Context, req *models.Request) error {
