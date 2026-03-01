@@ -14,6 +14,7 @@ import (
 type Storage interface {
 	Upload(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) (minio.UploadInfo, error)
 	PresignedGetURL(ctx context.Context, objectName string, expiry time.Duration) (string, error)
+	PresignedPutURL(ctx context.Context, objectName, contentType string, expiry time.Duration) (string, error)
 	Delete(ctx context.Context, objectName string) error
 }
 
@@ -56,6 +57,15 @@ func (s *minioStorage) Upload(ctx context.Context, objectName string, reader io.
 func (s *minioStorage) PresignedGetURL(ctx context.Context, objectName string, expiry time.Duration) (string, error) {
 	reqParams := make(url.Values)
 	u, err := s.client.PresignedGetObject(ctx, s.bucket, objectName, expiry, reqParams)
+	if err != nil {
+		return "", err
+	}
+	return u.String(), nil
+}
+
+func (s *minioStorage) PresignedPutURL(ctx context.Context, objectName, contentType string, expiry time.Duration) (string, error) {
+	// Presigned URL для PUT запроса
+	u, err := s.client.PresignedPutObject(ctx, s.bucket, objectName, expiry)
 	if err != nil {
 		return "", err
 	}

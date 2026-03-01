@@ -1,0 +1,582 @@
+basePath: /
+definitions:
+  dto.ConfirmUploadRequest:
+    properties:
+      device_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      photo_uuid:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - photo_uuid
+    type: object
+  dto.PhotoListResponse:
+    properties:
+      photos:
+        items:
+          $ref: '#/definitions/dto.PhotoResponse'
+        type: array
+      user_uuid:
+        type: string
+    type: object
+  dto.PhotoResponse:
+    properties:
+      client_id:
+        description: UUID сгенерированный клиентом (если был передан)
+        type: string
+      created_at:
+        type: string
+      url:
+        type: string
+      user_uuid:
+        type: string
+      uuid:
+        type: string
+    type: object
+  dto.UploadPhotoRequest:
+    properties:
+      client_id:
+        description: UUID сгенерированный клиентом (для оптимистичного UI)
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+      content_type:
+        example: image/jpeg
+        type: string
+      file_size:
+        example: 1048576
+        type: integer
+      filename:
+        example: photo.jpg
+        type: string
+    required:
+    - file_size
+    - filename
+    type: object
+  dto.UploadPhotoResponse:
+    properties:
+      client_id:
+        description: UUID сгенерированный клиентом
+        type: string
+      expires_in:
+        type: integer
+      max_file_size:
+        description: Макс. размер файла в байтах
+        type: integer
+      method:
+        type: string
+      photo_uuid:
+        type: string
+      upload_url:
+        type: string
+    type: object
+  models.Device:
+    description: Устройство представляет собой физический объект с инвентарным номером
+    properties:
+      created_at:
+        description: Дата создания
+        type: string
+      deleted_at:
+        description: Дата удаления (soft delete)
+        type: string
+      inventory_num:
+        description: Инвентарный номер
+        type: string
+      photos:
+        description: Фотографии (many-to-many)
+        items:
+          $ref: '#/definitions/models.Photo'
+        type: array
+      requests:
+        description: Запросы на обслуживание
+        items:
+          $ref: '#/definitions/models.Request'
+        type: array
+      specification:
+        description: Спецификация
+        type: string
+      status:
+        description: Статус
+        type: string
+      type:
+        description: Тип устройства
+        type: string
+      updated_at:
+        description: Дата обновления
+        type: string
+      user_uuid:
+        description: UUID владельца (из auth-сервиса)
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      uuid:
+        description: UUID устройства (v7)
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+    type: object
+  models.Photo:
+    description: Фотография загруженная пользователем и привязанная к устройству
+    properties:
+      client_id:
+        description: UUID сгенерированный клиентом (для оптимистичного UI)
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+      content_type:
+        description: MIME тип файла
+        example: image/jpeg
+        type: string
+      created_at:
+        description: Дата создания
+        type: string
+      deleted_at:
+        description: Дата удаления (soft delete)
+        type: string
+      devices:
+        description: Устройства на фото (many-to-many)
+        items:
+          $ref: '#/definitions/models.Device'
+        type: array
+      file_name:
+        description: Имя файла
+        example: photo.jpg
+        type: string
+      file_size:
+        description: Размер файла в байтах
+        example: 1048576
+        type: integer
+      status:
+        allOf:
+        - $ref: '#/definitions/models.PhotoStatus'
+        description: Статус загрузки
+        example: pending
+      updated_at:
+        description: Дата обновления
+        type: string
+      url:
+        description: Ссылка на фото в MinIO
+        type: string
+      user_uuid:
+        description: UUID владельца (из auth-сервиса)
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      uuid:
+        description: UUID фотографии (v7, генерируется сервером)
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+    type: object
+  models.PhotoStatus:
+    enum:
+    - pending
+    - completed
+    type: string
+    x-enum-comments:
+      PhotoStatusCompleted: Загрузка завершена
+      PhotoStatusPending: Ожидает загрузки (выдан presigned URL)
+    x-enum-descriptions:
+    - Ожидает загрузки (выдан presigned URL)
+    - Загрузка завершена
+    x-enum-varnames:
+    - PhotoStatusPending
+    - PhotoStatusCompleted
+  models.Request:
+    description: Запрос создаётся пользователем для обслуживания или ремонта устройства
+    properties:
+      created_at:
+        description: Дата создания
+        type: string
+      deleted_at:
+        description: Дата удаления (soft delete)
+        type: string
+      device:
+        allOf:
+        - $ref: '#/definitions/models.Device'
+        description: Устройство (FK)
+      device_uuid:
+        description: UUID устройства
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      message:
+        description: Текст запроса
+        type: string
+      photo_url:
+        description: Ссылка на фото (опционально)
+        type: string
+      status:
+        description: Статус запроса
+        type: string
+      updated_at:
+        description: Дата обновления
+        type: string
+      user_uuid:
+        description: UUID владельца (из auth-сервиса)
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      uuid:
+        description: UUID запроса (v7)
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@hwwach.com
+    name: API Support
+  description: API для управления устройствами и фотографиями
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0
+  termsOfService: http://swagger.io/terms/
+  title: HwWach API
+  version: "1.0"
+paths:
+  /devices:
+    get:
+      consumes:
+      - application/json
+      description: Получение всех устройств авторизованного пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Device'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список устройств пользователя
+      tags:
+      - devices
+  /devices/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Получение информации об устройстве по идентификатору
+      parameters:
+      - description: ID устройства (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Device'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить устройство по ID
+      tags:
+      - devices
+  /devices/{id}/photos:
+    get:
+      consumes:
+      - application/json
+      description: Получение всех фотографий для указанного устройства
+      parameters:
+      - description: ID устройства (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Photo'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список фотографий устройства
+      tags:
+      - devices
+      - photos
+  /photos:
+    get:
+      consumes:
+      - application/json
+      description: Получение всех фотографий авторизованного пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PhotoListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список фотографий сделанных пользователем
+      tags:
+      - photos
+  /photos/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Удаление фотографии по идентификатору
+      parameters:
+      - description: ID фотографии (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Удалить фотографию
+      tags:
+      - photos
+  /photos/complete-upload:
+    post:
+      consumes:
+      - application/json
+      description: Изменение статуса фотографии на completed после успешной загрузки
+        в MinIO
+      parameters:
+      - description: UUID фотографии и опционально устройство
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ConfirmUploadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PhotoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Подтвердить загрузку фотографии
+      tags:
+      - photos
+  /photos/upload-url:
+    post:
+      consumes:
+      - application/json
+      description: 'Возвращает временный URL для прямой загрузки файла в MinIO (минуя
+        сервер). Макс. размер файла: 20 МБ'
+      parameters:
+      - description: Имя файла, MIME тип и размер
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UploadPhotoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UploadPhotoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить presigned URL для загрузки фотографии
+      tags:
+      - photos
+  /requests:
+    post:
+      consumes:
+      - application/json
+      description: Создание нового запроса в системе
+      parameters:
+      - description: Данные запроса
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Request'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Создать запрос
+      tags:
+      - requests
+  /requests/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Удаление запроса по идентификатору
+      parameters:
+      - description: ID запроса (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Удалить запрос
+      tags:
+      - requests
+    get:
+      consumes:
+      - application/json
+      description: Получение информации о запросе по идентификатору
+      parameters:
+      - description: ID запроса (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Request'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить запрос по ID
+      tags:
+      - requests
+securityDefinitions:
+  BearerAuth:
+    description: Введите JWT токен в формате "Bearer <token>"
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

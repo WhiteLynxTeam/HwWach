@@ -16,6 +16,7 @@ import (
 	"HwWach/internal/config"
 	"HwWach/internal/handlers"
 	"HwWach/internal/middleware"
+	"HwWach/migrations"
 	"HwWach/internal/models"
 	"HwWach/internal/repository"
 	"HwWach/internal/routes"
@@ -29,8 +30,6 @@ type App struct {
 	minioSvc storage.Storage
 	router   *gin.Engine
 
-	authH   handlers.AuthHandler
-	userH   handlers.UserHandler
 	deviceH handlers.DeviceHandler
 	photoH  handlers.PhotoHandler
 	reqH    handlers.RequestHandler
@@ -46,8 +45,27 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
+	// Миграция ID с uint на uuid (если старые таблицы существуют)
+	if err := migrations.MigrateUintToUUID(db); err != nil {
+		return nil, err
+	}
+
+	// Миграция добавления полей status, file_size, file_name, content_type в таблицу photos
+	if err := migrations.MigratePhotoStatus(db); err != nil {
+		return nil, err
+	}
+
+	// Миграция добавления поля client_id для оптимистичного UI
+	if err := migrations.MigratePhotoClientID(db); err != nil {
+		return nil, err
+	}
+
+	// Миграция UUID v7: убираем default gen_random_uuid(), так как UUID генерируется в Go-коде
+	if err := migrations.MigrateUUIDv7(db); err != nil {
+		return nil, err
+	}
+
 	if err := db.AutoMigrate(
-		&models.User{},
 		&models.Device{},
 		&models.Photo{},
 		&models.Request{},
@@ -67,34 +85,27 @@ func NewApp() (*App, error) {
 	}
 	minioSvc := storage.NewMinioStorage(minioCli, cfg.MinioBucket)
 
-	userRepo := repository.NewUserRepo(db)
 	deviceRepo := repository.NewDeviceRepo(db)
 	photoRepo := repository.NewPhotoRepo(db)
 	requestRepo := repository.NewRequestRepo(db)
 
-	authSvc := services.NewAuthService(userRepo, []byte(cfg.JWTSecret))
-	userSvc := services.NewUserService(userRepo)
 	deviceSvc := services.NewDeviceService(deviceRepo, photoRepo)
 	photoSvc := services.NewPhotoService(photoRepo, deviceRepo, minioSvc)
 	reqSvc := services.NewRequestService(requestRepo, deviceRepo, photoRepo)
 
-	authH := handlers.NewAuthHandler(authSvc)
-	userH := handlers.NewUserHandler(userSvc)
 	deviceH := handlers.NewDeviceHandler(deviceSvc)
 	photoH := handlers.NewPhotoHandler(photoSvc)
 	reqH := handlers.NewRequestHandler(reqSvc)
 
 	router := gin.Default()
 	jwtMW := middleware.JWTMiddleware([]byte(cfg.JWTSecret))
-	routes.SetupRoutes(router, authH, userH, deviceH, photoH, reqH, jwtMW)
+	routes.SetupRoutes(router, deviceH, photoH, reqH, jwtMW)
 
 	return &App{
 		cfg:      cfg,
 		db:       db,
 		minioSvc: minioSvc,
 		router:   router,
-		authH:    authH,
-		userH:    userH,
 		deviceH:  deviceH,
 		photoH:   photoH,
 		reqH:     reqH,

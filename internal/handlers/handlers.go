@@ -2,20 +2,6 @@ package handlers
 
 import "github.com/gin-gonic/gin"
 
-type AuthHandler interface {
-	Login(c *gin.Context)
-	Register(c *gin.Context)
-	Logout(c *gin.Context)
-	Refresh(c *gin.Context)
-}
-
-type UserHandler interface {
-	GetProfile(c *gin.Context)
-	UpdateProfile(c *gin.Context)
-	ChangePassword(c *gin.Context)
-	ListDevices(c *gin.Context)
-}
-
 type DeviceHandler interface {
 	ListUserDevices(c *gin.Context)
 	GetDevice(c *gin.Context)
@@ -24,6 +10,7 @@ type DeviceHandler interface {
 
 type PhotoHandler interface {
 	UploadPhoto(c *gin.Context)
+	ConfirmUpload(c *gin.Context)
 	ListUserPhotos(c *gin.Context)
 	DeletePhoto(c *gin.Context)
 }

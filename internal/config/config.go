@@ -20,14 +20,21 @@ type Config struct {
 func Load() (*Config, error) {
 	v := viper.New()
 
-	v.SetDefault("ServerAddress", ":8080")
-	v.SetDefault("DatabaseDSN", "host=localhost user=app dbname=app sslmode=disable password=secret")
-	v.SetDefault("JWTSecret", "your_jwt_secret_here")
-	v.SetDefault("MinioEndpoint", "play.min.io:9000")
-	v.SetDefault("MinioAccessKey", "Q3AM3UQ867SPQQA43P2F")
-	v.SetDefault("MinioSecretKey", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG")
-	v.SetDefault("MinioUseSSL", true)
-	v.SetDefault("MinioBucket", "photos")
+	// Сервер
+	v.SetDefault("serveraddress", ":8080")
+
+	// PostgreSQL — дефолт для docker-compose (контейнер postgres)
+	v.SetDefault("databasedsn", "host=postgres user=postgres dbname=hwwach_db sslmode=disable password=postgres")
+
+	// JWT — безопасный дефолт (но лучше менять в production)
+	v.SetDefault("jwtsecret", "your-super-secret-jwt-key-here-make-it-long-and-random")
+
+	// MinIO — дефолт для docker-compose (контейнер minio)
+	v.SetDefault("minioendpoint", "minio:9000")
+	v.SetDefault("minioaccesskey", "Q3AM3UQ867SPQQA43P2F")
+	v.SetDefault("miniosecretkey", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG")
+	v.SetDefault("miniousessl", false)
+	v.SetDefault("miniobucket", "photos")
 
 	v.SetConfigName("config")
 	v.SetConfigType("toml")
