@@ -1,0 +1,871 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API для управления устройствами и фотографиями",
+        "title": "HwWach API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "email": "support@hwwach.com"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/devices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Получение всех устройств авторизованного пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "devices"
+                ],
+                "summary": "Список устройств пользователя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Device"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Получение информации об устройстве по идентификатору",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "devices"
+                ],
+                "summary": "Получить устройство по ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID устройства (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Device"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/photos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Получение всех фотографий для указанного устройства",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "devices",
+                    "photos"
+                ],
+                "summary": "Список фотографий устройства",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID устройства (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Photo"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/photos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Получение всех фотографий авторизованного пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "photos"
+                ],
+                "summary": "Список фотографий сделанных пользователем",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PhotoListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/photos/complete-upload": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Изменение статуса фотографии на completed после успешной загрузки в MinIO",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "photos"
+                ],
+                "summary": "Подтвердить загрузку фотографии",
+                "parameters": [
+                    {
+                        "description": "UUID фотографии и опционально устройство",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ConfirmUploadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PhotoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/photos/upload-url": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает временный URL для прямой загрузки файла в MinIO (минуя сервер). Макс. размер файла: 20 МБ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "photos"
+                ],
+                "summary": "Получить presigned URL для загрузки фотографии",
+                "parameters": [
+                    {
+                        "description": "Имя файла, MIME тип и размер",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadPhotoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadPhotoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/photos/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаление фотографии по идентификатору",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "photos"
+                ],
+                "summary": "Удалить фотографию",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID фотографии (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/requests": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Создание нового запроса в системе",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "requests"
+                ],
+                "summary": "Создать запрос",
+                "parameters": [
+                    {
+                        "description": "Данные запроса",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Request"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/requests/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Получение информации о запросе по идентификатору",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "requests"
+                ],
+                "summary": "Получить запрос по ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID запроса (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Request"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаление запроса по идентификатору",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "requests"
+                ],
+                "summary": "Удалить запрос",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID запроса (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.ConfirmUploadRequest": {
+            "type": "object",
+            "required": [
+                "photo_uuid"
+            ],
+            "properties": {
+                "device_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "photo_uuid": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "dto.PhotoListResponse": {
+            "type": "object",
+            "properties": {
+                "photos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.PhotoResponse"
+                    }
+                },
+                "user_uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.PhotoResponse": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "description": "UUID сгенерированный клиентом (если был передан)",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "user_uuid": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UploadPhotoRequest": {
+            "type": "object",
+            "required": [
+                "file_size",
+                "filename"
+            ],
+            "properties": {
+                "client_id": {
+                    "description": "UUID сгенерированный клиентом (для оптимистичного UI)",
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "content_type": {
+                    "type": "string",
+                    "example": "image/jpeg"
+                },
+                "file_size": {
+                    "type": "integer",
+                    "example": 1048576
+                },
+                "filename": {
+                    "type": "string",
+                    "example": "photo.jpg"
+                }
+            }
+        },
+        "dto.UploadPhotoResponse": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "description": "UUID сгенерированный клиентом",
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "max_file_size": {
+                    "description": "Макс. размер файла в байтах",
+                    "type": "integer"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "photo_uuid": {
+                    "type": "string"
+                },
+                "upload_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Device": {
+            "description": "Устройство представляет собой физический объект с инвентарным номером",
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Дата создания",
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "description": "Дата удаления (soft delete)",
+                    "type": "string"
+                },
+                "inventory_num": {
+                    "description": "Инвентарный номер",
+                    "type": "string"
+                },
+                "photos": {
+                    "description": "Фотографии (many-to-many)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Photo"
+                    }
+                },
+                "requests": {
+                    "description": "Запросы на обслуживание",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Request"
+                    }
+                },
+                "specification": {
+                    "description": "Спецификация",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Статус",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Тип устройства",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Дата обновления",
+                    "type": "string"
+                },
+                "user_uuid": {
+                    "description": "UUID владельца (из auth-сервиса)",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "uuid": {
+                    "description": "UUID устройства (v7)",
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                }
+            }
+        },
+        "models.Photo": {
+            "description": "Фотография загруженная пользователем и привязанная к устройству",
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "description": "UUID сгенерированный клиентом (для оптимистичного UI)",
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "content_type": {
+                    "description": "MIME тип файла",
+                    "type": "string",
+                    "example": "image/jpeg"
+                },
+                "created_at": {
+                    "description": "Дата создания",
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "description": "Дата удаления (soft delete)",
+                    "type": "string"
+                },
+                "devices": {
+                    "description": "Устройства на фото (many-to-many)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Device"
+                    }
+                },
+                "file_name": {
+                    "description": "Имя файла",
+                    "type": "string",
+                    "example": "photo.jpg"
+                },
+                "file_size": {
+                    "description": "Размер файла в байтах",
+                    "type": "integer",
+                    "example": 1048576
+                },
+                "status": {
+                    "description": "Статус загрузки",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.PhotoStatus"
+                        }
+                    ],
+                    "example": "pending"
+                },
+                "updated_at": {
+                    "description": "Дата обновления",
+                    "type": "string"
+                },
+                "url": {
+                    "description": "Ссылка на фото в MinIO",
+                    "type": "string"
+                },
+                "user_uuid": {
+                    "description": "UUID владельца (из auth-сервиса)",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "uuid": {
+                    "description": "UUID фотографии (v7, генерируется сервером)",
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                }
+            }
+        },
+        "models.PhotoStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "completed"
+            ],
+            "x-enum-comments": {
+                "PhotoStatusCompleted": "Загрузка завершена",
+                "PhotoStatusPending": "Ожидает загрузки (выдан presigned URL)"
+            },
+            "x-enum-descriptions": [
+                "Ожидает загрузки (выдан presigned URL)",
+                "Загрузка завершена"
+            ],
+            "x-enum-varnames": [
+                "PhotoStatusPending",
+                "PhotoStatusCompleted"
+            ]
+        },
+        "models.Request": {
+            "description": "Запрос создаётся пользователем для обслуживания или ремонта устройства",
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Дата создания",
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "description": "Дата удаления (soft delete)",
+                    "type": "string"
+                },
+                "device": {
+                    "description": "Устройство (FK)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Device"
+                        }
+                    ]
+                },
+                "device_uuid": {
+                    "description": "UUID устройства",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "message": {
+                    "description": "Текст запроса",
+                    "type": "string"
+                },
+                "photo_url": {
+                    "description": "Ссылка на фото (опционально)",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Статус запроса",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Дата обновления",
+                    "type": "string"
+                },
+                "user_uuid": {
+                    "description": "UUID владельца (из auth-сервиса)",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "uuid": {
+                    "description": "UUID запроса (v7)",
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Введите JWT токен в формате \"Bearer \u003ctoken\u003e\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

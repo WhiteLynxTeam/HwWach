@@ -4,32 +4,23 @@ import (
 	"HwWach/internal/handlers"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func SetupRoutes(
 	r *gin.Engine,
-	authHandler handlers.AuthHandler,
-	userHandler handlers.UserHandler,
 	deviceHandler handlers.DeviceHandler,
 	photoHandler handlers.PhotoHandler,
 	requestHandler handlers.RequestHandler,
 	jwtMiddleware gin.HandlerFunc,
 ) {
-	auth := r.Group("/auth")
-	{
-		auth.POST("/login", authHandler.Login)
-		auth.POST("/register", authHandler.Register)
-		auth.POST("/logout", authHandler.Logout)
-		auth.POST("/refresh", authHandler.Refresh)
-	}
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 
-	user := r.Group("/users", jwtMiddleware)
-	{
-		user.GET("", userHandler.GetProfile)
-		user.PATCH("", userHandler.UpdateProfile)
-		user.PATCH("/password", userHandler.ChangePassword)
-		user.GET("/devices", userHandler.ListDevices)
-	}
+	// Swagger UI
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	dev := r.Group("/devices", jwtMiddleware)
 	{
@@ -40,8 +31,9 @@ func SetupRoutes(
 
 	photos := r.Group("/photos", jwtMiddleware)
 	{
-		photos.POST("/upload", photoHandler.UploadPhoto)
-		photos.GET("/user", photoHandler.ListUserPhotos)
+		photos.POST("/upload-url", photoHandler.UploadPhoto)
+		photos.POST("/complete-upload", photoHandler.ConfirmUpload)
+		photos.GET("", photoHandler.ListUserPhotos)
 		photos.DELETE("/:id", photoHandler.DeletePhoto)
 	}
 

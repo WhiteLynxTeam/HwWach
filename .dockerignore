@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Qwen
+.qwen
+
+# Тесты
+*_test.go
+
+# Документация
+*.md
+!go.mod
+!go.sum
+
+# Временные файлы
+*.log
+*.tmp
+*.swp
+*~
+
+# Локальные конфиги
+config.toml
+.env
+
+# Сборка
+bin/
+dist/
+build/
+vendor/

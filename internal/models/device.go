@@ -3,19 +3,22 @@ package models
 import (
 	"time"
 
-	"gorm.io/gorm"
+	"github.com/google/uuid"
 )
 
+// Device устройство в системе
+// @Description Устройство представляет собой физический объект с инвентарным номером
 type Device struct {
-	ID            uint   `gorm:"primaryKey"`
-	InventoryNum  string `gorm:"unique;not null"`
-	Type          string `gorm:"not null"`
-	Specification string `gorm:"type:text"`
-	Status        string `gorm:"not null"`
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	DeletedAt     gorm.DeletedAt `gorm:"index"`
+	UUID          uuid.UUID `gorm:"type:uuid;primaryKey" json:"uuid" swaggertype:"string" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"` // UUID устройства (v7)
+	InventoryNum  string    `gorm:"unique;not null" json:"inventory_num"`                                                                                           // Инвентарный номер
+	Type          string    `gorm:"not null" json:"type"`                                                                                                           // Тип устройства
+	Specification string    `gorm:"type:text" json:"specification"`                                                                                                 // Спецификация
+	Status        string    `gorm:"not null" json:"status"`                                                                                                         // Статус
+	UserUUID      uuid.UUID `gorm:"type:uuid;not null;index;column:user_id" json:"user_uuid" swaggertype:"string" example:"550e8400-e29b-41d4-a716-446655440000"`   // UUID владельца (из auth-сервиса)
+	CreatedAt     time.Time `json:"created_at"`                                                                                                                     // Дата создания
+	UpdatedAt     time.Time `json:"updated_at"`                                                                                                                     // Дата обновления
+	DeletedAt     time.Time `json:"deleted_at,omitempty"`                                                                                                           // Дата удаления (soft delete)
 
-	Photos   []Photo   `gorm:"foreignKey:DeviceID"`
-	Requests []Request `gorm:"foreignKey:DeviceID"`
+	Photos   []Photo   `gorm:"many2many:device_photos;" json:"photos,omitempty"` // Фотографии (many-to-many)
+	Requests []Request `gorm:"foreignKey:DeviceUUID" json:"requests,omitempty"`  // Запросы на обслуживание
 }
