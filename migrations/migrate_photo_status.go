@@ -5,11 +5,28 @@ import (
 )
 
 // MigratePhotoStatus добавляет поля status, file_size, file_name, content_type в таблицу photos
-// Если таблица уже имеет новую схему — миграция не применяется
+// Если таблица ещё не существует — миграция создаст её и вернётся (поля будут созданы через AutoMigrate)
 func MigratePhotoStatus(db *gorm.DB) error {
+	// Проверяем, существует ли таблица photos
+	var tableName string
+	err := db.Raw(`
+		SELECT table_name
+		FROM information_schema.tables
+		WHERE table_name = 'photos' AND table_schema = 'public'
+	`).Scan(&tableName).Error
+
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+
+	// Если таблица ещё не существует — выходим, AutoMigrate создаст её с нужными полями
+	if tableName != "photos" {
+		return nil
+	}
+
 	// Проверяем, существует ли уже колонка status
 	var columnName string
-	err := db.Raw(`
+	err = db.Raw(`
 		SELECT column_name
 		FROM information_schema.columns
 		WHERE table_name = 'photos' AND column_name = 'status'
@@ -44,9 +61,26 @@ func MigratePhotoStatus(db *gorm.DB) error {
 
 // MigratePhotoClientID добавляет поле client_id для оптимистичного UI
 func MigratePhotoClientID(db *gorm.DB) error {
+	// Проверяем, существует ли таблица photos
+	var tableName string
+	err := db.Raw(`
+		SELECT table_name
+		FROM information_schema.tables
+		WHERE table_name = 'photos' AND table_schema = 'public'
+	`).Scan(&tableName).Error
+
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+
+	// Если таблица ещё не существует — выходим, AutoMigrate создаст её с нужными полями
+	if tableName != "photos" {
+		return nil
+	}
+
 	// Проверяем, существует ли уже колонка client_id
 	var columnName string
-	err := db.Raw(`
+	err = db.Raw(`
 		SELECT column_name
 		FROM information_schema.columns
 		WHERE table_name = 'photos' AND column_name = 'client_id'
