@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"HwWach/internal/app"
 	_ "HwWach/docs"
 )
@@ -28,7 +29,7 @@ import (
 func main() {
 	app, err := app.NewApp()
 	if err != nil {
-		println(err)
+		fmt.Println("Error starting app:", err)
 		return
 	}
 	app.Run()

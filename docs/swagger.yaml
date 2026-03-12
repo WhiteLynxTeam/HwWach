@@ -29,8 +29,6 @@ definitions:
         type: string
       url:
         type: string
-      user_uuid:
-        type: string
       uuid:
         type: string
     type: object

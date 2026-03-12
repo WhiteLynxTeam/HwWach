@@ -20,36 +20,52 @@ type Config struct {
 func Load() (*Config, error) {
 	v := viper.New()
 
-	// Сервер
-	v.SetDefault("serveraddress", ":8080")
+	v.AutomaticEnv()
 
-	// PostgreSQL — дефолт для docker-compose (контейнер postgres)
-	v.SetDefault("databasedsn", "host=postgres user=postgres dbname=hwwach_db sslmode=disable password=postgres")
+	// регистрируем ключи. 
+	// Без этого Unmarshal не увидит переменные окружения.
+	// Ключи в BindEnv должны совпадать с названиями в структуре (mapstructure)
+	keys := []string{
+		"SERVERADDRESS",
+		"DATABASEDSN",
+		"JWTSECRET",
+		"MINIOENDPOINT",
+		"MINIOACCESSKEY",
+		"MINIOSECRETKEY",
+		"MINIOBUCKET",
+		"MINIOUSESSL",
+		"TZ",
+	}
 
-	// JWT — безопасный дефолт (но лучше менять в production)
-	v.SetDefault("jwtsecret", "your-super-secret-jwt-key-here-make-it-long-and-random")
-
-	// MinIO — дефолт для docker-compose (контейнер minio)
-	v.SetDefault("minioendpoint", "minio:9000")
-	v.SetDefault("minioaccesskey", "Q3AM3UQ867SPQQA43P2F")
-	v.SetDefault("miniosecretkey", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG")
-	v.SetDefault("miniousessl", false)
-	v.SetDefault("miniobucket", "photos")
-
-	v.SetConfigName("config")
-	v.SetConfigType("toml")
-	v.AddConfigPath(".")
-	if err := v.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("error reading config file: %w", err)
+	for _, key := range keys {
+		if err := v.BindEnv(key); err != nil {
+			return nil, err
 		}
 	}
 
-	v.AutomaticEnv()
+	v.SetDefault("serveraddress", ":8080")
+	v.SetDefault("miniobucket", "photos")
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unable to decode config: %w", err)
+	}
+
+	// Валидация обязательных переменных окружения
+	if cfg.DatabaseDSN == "" {
+		return nil, fmt.Errorf("DATABASEDSN environment variable is required")
+	}
+	if cfg.JWTSecret == "" {
+		return nil, fmt.Errorf("JWTSECRET environment variable is required")
+	}
+	if cfg.MinioEndpoint == "" {
+		return nil, fmt.Errorf("MINIOENDPOINT environment variable is required")
+	}
+	if cfg.MinioAccessKey == "" {
+		return nil, fmt.Errorf("MINIOACCESSKEY environment variable is required")
+	}
+	if cfg.MinioSecretKey == "" {
+		return nil, fmt.Errorf("MINIOSECRETKEY environment variable is required")
 	}
 
 	return &cfg, nil
