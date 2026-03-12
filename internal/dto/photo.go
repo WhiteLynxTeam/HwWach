@@ -31,7 +31,6 @@ type ConfirmUploadRequest struct {
 // PhotoResponse ответ с информацией о фотографии
 type PhotoResponse struct {
 	UUID      string  `json:"uuid"`
-	UserUUID  string  `json:"user_uuid"`
 	URL       string  `json:"url"`
 	CreatedAt string  `json:"created_at"`
 	ClientID  *string `json:"client_id,omitempty"` // UUID сгенерированный клиентом (если был передан)

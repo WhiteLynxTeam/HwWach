@@ -608,9 +608,6 @@ const docTemplate = `{
                 "url": {
                     "type": "string"
                 },
-                "user_uuid": {
-                    "type": "string"
-                },
                 "uuid": {
                     "type": "string"
                 }
