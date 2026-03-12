@@ -16,7 +16,6 @@ import (
 	"HwWach/internal/config"
 	"HwWach/internal/handlers"
 	"HwWach/internal/middleware"
-	"HwWach/migrations"
 	"HwWach/internal/models"
 	"HwWach/internal/repository"
 	"HwWach/internal/routes"
@@ -42,26 +41,6 @@ func NewApp() (*App, error) {
 	}
 	db, err := gorm.Open(postgres.Open(cfg.DatabaseDSN), &gorm.Config{})
 	if err != nil {
-		return nil, err
-	}
-
-	// Миграция ID с uint на uuid (если старые таблицы существуют)
-	if err := migrations.MigrateUintToUUID(db); err != nil {
-		return nil, err
-	}
-
-	// Миграция добавления полей status, file_size, file_name, content_type в таблицу photos
-	if err := migrations.MigratePhotoStatus(db); err != nil {
-		return nil, err
-	}
-
-	// Миграция добавления поля client_id для оптимистичного UI
-	if err := migrations.MigratePhotoClientID(db); err != nil {
-		return nil, err
-	}
-
-	// Миграция UUID v7: убираем default gen_random_uuid(), так как UUID генерируется в Go-коде
-	if err := migrations.MigrateUUIDv7(db); err != nil {
 		return nil, err
 	}
 

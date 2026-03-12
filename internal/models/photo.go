@@ -29,5 +29,5 @@ type Photo struct {
 	UpdatedAt time.Time   `json:"updated_at"`                                                                                                                                                               // Дата обновления
 	DeletedAt time.Time   `json:"deleted_at,omitempty"`                                                                                                                                                     // Дата удаления (soft delete)
 
-	Devices []Device `gorm:"many2many:device_photos;" json:"devices,omitempty"` // Устройства на фото (many-to-many)
+	Devices []Device `gorm:"many2many:device_photos;joinForeignKey:PhotoUUID;joinReferences:DeviceUUID" json:"devices,omitempty"` // Устройства на фото (many-to-many)
 }
