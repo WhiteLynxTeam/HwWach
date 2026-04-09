@@ -87,8 +87,9 @@ func (s *photoService) GetPresignedUploadURL(ctx context.Context, objectName, co
 	// objectName может быть полным URL (minio://photos/...) или просто путём
 	// Извлекаем путь из URL
 	path := objectName
-	if len(objectName) > 13 && objectName[:13] == "minio://photos/" {
-		path = objectName[13:]
+	const prefix = "minio://photos/"
+	if len(objectName) > len(prefix) && objectName[:len(prefix)] == prefix {
+		path = objectName[len(prefix):]
 	}
 	return s.minioSVC.PresignedPutURL(ctx, path, contentType, 24*time.Hour)
 }

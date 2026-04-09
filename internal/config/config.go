@@ -7,14 +7,15 @@ import (
 )
 
 type Config struct {
-	ServerAddress  string
-	DatabaseDSN    string
-	JWTSecret      string
-	MinioEndpoint  string
-	MinioAccessKey string
-	MinioSecretKey string
-	MinioUseSSL    bool
-	MinioBucket    string
+	ServerAddress   string
+	DatabaseDSN     string
+	JWTSecret       string
+	MinioEndpoint   string
+	MinioPublicURL  string
+	MinioAccessKey  string
+	MinioSecretKey  string
+	MinioUseSSL     bool
+	MinioBucket     string
 }
 
 func Load() (*Config, error) {
@@ -30,6 +31,7 @@ func Load() (*Config, error) {
 		"DATABASEDSN",
 		"JWTSECRET",
 		"MINIOENDPOINT",
+		"MINIOPUBLICURL",
 		"MINIOACCESSKEY",
 		"MINIOSECRETKEY",
 		"MINIOBUCKET",
