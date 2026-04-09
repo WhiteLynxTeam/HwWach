@@ -62,7 +62,7 @@ func NewApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	minioSvc := storage.NewMinioStorage(minioCli, cfg.MinioBucket)
+	minioSvc := storage.NewMinioStorage(minioCli, cfg.MinioBucket, cfg.MinioPublicURL, cfg.MinioAccessKey, cfg.MinioSecretKey)
 
 	deviceRepo := repository.NewDeviceRepo(db)
 	photoRepo := repository.NewPhotoRepo(db)
