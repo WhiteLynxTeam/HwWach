@@ -52,8 +52,9 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-	minioCli, err := storage.NewMinioClient(
-		cfg.MinioEndpoint,
+	minioSvc, err := storage.NewMinioStorage(
+		cfg.MinioEndpoint,  // внутренний: minio:9000
+		cfg.MinioPublicURL, // внешний: http://149.154.65.57:9000
 		cfg.MinioAccessKey,
 		cfg.MinioSecretKey,
 		cfg.MinioUseSSL,
@@ -62,7 +63,6 @@ func NewApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	minioSvc := storage.NewMinioStorage(minioCli, cfg.MinioBucket, cfg.MinioPublicURL, cfg.MinioAccessKey, cfg.MinioSecretKey)
 
 	deviceRepo := repository.NewDeviceRepo(db)
 	photoRepo := repository.NewPhotoRepo(db)
