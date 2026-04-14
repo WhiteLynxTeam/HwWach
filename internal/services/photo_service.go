@@ -48,7 +48,7 @@ func (s *photoService) CreatePendingPhoto(ctx context.Context, userUUID uuid.UUI
 	photo := &models.Photo{
 		UUID:        photoUUID,
 		UserUUID:    userUUID,
-		URL:         fmt.Sprintf("minio://photos/%s", objectName),
+		URL:         objectName, // Сохраняем только относительный путь
 		Status:      models.PhotoStatusPending,
 		FileSize:    fileSize,
 		FileName:    fileName,
@@ -84,12 +84,6 @@ func (s *photoService) ListByDeviceUUID(ctx context.Context, deviceUUID uuid.UUI
 }
 
 func (s *photoService) GetPresignedUploadURL(ctx context.Context, objectName, contentType string) (string, error) {
-	// objectName может быть полным URL (minio://photos/...) или просто путём
-	// Извлекаем путь из URL
-	path := objectName
-	const prefix = "minio://photos/"
-	if len(objectName) > len(prefix) && objectName[:len(prefix)] == prefix {
-		path = objectName[len(prefix):]
-	}
-	return s.minioSVC.PresignedPutURL(ctx, path, contentType, 24*time.Hour)
+	// objectName теперь содержит чистый путь (user_id/photo_id_filename)
+	return s.minioSVC.PresignedPutURL(ctx, objectName, contentType, 24*time.Hour)
 }

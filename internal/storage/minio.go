@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/url"
 	"time"
 
@@ -12,93 +11,81 @@ import (
 )
 
 type Storage interface {
-	Upload(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) (minio.UploadInfo, error)
 	PresignedGetURL(ctx context.Context, objectName string, expiry time.Duration) (string, error)
 	PresignedPutURL(ctx context.Context, objectName, contentType string, expiry time.Duration) (string, error)
 	Delete(ctx context.Context, objectName string) error
 }
 
-type minioStorage struct {
-	client        *minio.Client
-	presignClient *minio.Client // отдельный клиент для presigned URL (подключён к public endpoint)
-	bucket        string
+type MinioStorage struct {
+	internalClient *minio.Client // minio:9000 — для операций
+	externalClient *minio.Client // 149.154.65.57:9000 — для presigned URL
+	bucket         string
 }
 
-func NewMinioClient(endpoint, accessKey, secretKey string, useSSL bool, bucket string) (*minio.Client, error) {
-	cli, err := minio.New(endpoint, &minio.Options{
+func NewMinioStorage(internalEndpoint, externalEndpoint, accessKey, secretKey string, useSSL bool, bucket string) (Storage, error) {
+	// Создаём внутренний клиент (для операций внутри Docker)
+	internalClient, err := minio.New(internalEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("minio init failed: %w", err)
+		return nil, fmt.Errorf("internal client init failed: %w", err)
 	}
 
+	// Проверяем/создаём бакет через внутренний клиент
 	ctx := context.Background()
-	exists, err := cli.BucketExists(ctx, bucket)
+	exists, err := internalClient.BucketExists(ctx, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("bucketExists check failed: %w", err)
 	}
 	if !exists {
-		if err := cli.MakeBucket(ctx, bucket, minio.MakeBucketOptions{}); err != nil {
+		if err := internalClient.MakeBucket(ctx, bucket, minio.MakeBucketOptions{}); err != nil {
 			return nil, fmt.Errorf("makeBucket failed: %w", err)
 		}
 	}
 
-	return cli, nil
-}
-
-func NewMinioStorage(cli *minio.Client, bucket string, publicURL string, accessKey, secretKey string) Storage {
-	var presignClient *minio.Client
-	if publicURL != "" {
-		parsedURL, err := url.Parse(publicURL)
+	// Создаём внешний клиент (для presigned URL)
+	externalUseSSL := useSSL
+	if externalEndpoint != "" {
+		parsedURL, err := url.Parse(externalEndpoint)
 		if err == nil {
-			// Определяем useSSL на основе схемы
-			useSSL := parsedURL.Scheme == "https"
-			// Создаём отдельный клиент для presigned URL, подключённый к public endpoint
-			presignClient, err = minio.New(parsedURL.Host, &minio.Options{
-				Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
-				Secure: useSSL,
-			})
-			if err != nil {
-				// Если не получилось — просто не используем presignClient
-				presignClient = nil
-			}
+			externalUseSSL = parsedURL.Scheme == "https"
+			externalEndpoint = parsedURL.Host
 		}
 	}
-	return &minioStorage{client: cli, presignClient: presignClient, bucket: bucket}
+
+	externalClient, err := minio.New(externalEndpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+		Secure: externalUseSSL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("external client init failed: %w", err)
+	}
+
+	return &MinioStorage{
+		internalClient: internalClient,
+		externalClient: externalClient,
+		bucket:         bucket,
+	}, nil
 }
 
-func (s *minioStorage) Upload(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) (minio.UploadInfo, error) {
-	return s.client.PutObject(ctx, s.bucket, objectName, reader, size, minio.PutObjectOptions{ContentType: contentType})
-}
-
-func (s *minioStorage) PresignedGetURL(ctx context.Context, objectName string, expiry time.Duration) (string, error) {
+func (s *MinioStorage) PresignedGetURL(ctx context.Context, objectName string, expiry time.Duration) (string, error) {
 	reqParams := make(url.Values)
-	u, err := s.client.PresignedGetObject(ctx, s.bucket, objectName, expiry, reqParams)
+	u, err := s.internalClient.PresignedGetObject(ctx, s.bucket, objectName, expiry, reqParams)
 	if err != nil {
 		return "", err
 	}
 	return u.String(), nil
 }
 
-func (s *minioStorage) PresignedPutURL(ctx context.Context, objectName, contentType string, expiry time.Duration) (string, error) {
-	// Если есть отдельный клиент для presigned URL, используем его
-	if s.presignClient != nil {
-		u, err := s.presignClient.PresignedPutObject(ctx, s.bucket, objectName, expiry)
-		if err != nil {
-			return "", err
-		}
-		return u.String(), nil
-	}
-
-	// Фолбэк на основной клиент
-	u, err := s.client.PresignedPutObject(ctx, s.bucket, objectName, expiry)
+func (s *MinioStorage) PresignedPutURL(ctx context.Context, objectName, contentType string, expiry time.Duration) (string, error) {
+	u, err := s.externalClient.PresignedPutObject(ctx, s.bucket, objectName, expiry)
 	if err != nil {
 		return "", err
 	}
 	return u.String(), nil
 }
 
-func (s *minioStorage) Delete(ctx context.Context, objectName string) error {
-	return s.client.RemoveObject(ctx, s.bucket, objectName, minio.RemoveObjectOptions{})
+func (s *MinioStorage) Delete(ctx context.Context, objectName string) error {
+	return s.internalClient.RemoveObject(ctx, s.bucket, objectName, minio.RemoveObjectOptions{})
 }
