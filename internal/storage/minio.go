@@ -27,6 +27,7 @@ func NewMinioStorage(internalEndpoint, externalEndpoint, accessKey, secretKey st
 	internalClient, err := minio.New(internalEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
+		Region: "us-east-1",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("internal client init failed: %w", err)
@@ -57,6 +58,7 @@ func NewMinioStorage(internalEndpoint, externalEndpoint, accessKey, secretKey st
 	externalClient, err := minio.New(externalEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: externalUseSSL,
+		Region: "us-east-1", // Явно указываем регион, чтобы избежать запроса GetBucketLocation
 	})
 	if err != nil {
 		return nil, fmt.Errorf("external client init failed: %w", err)
