@@ -14,12 +14,14 @@ type Storage interface {
 	PresignedGetURL(ctx context.Context, objectName string, expiry time.Duration) (string, error)
 	PresignedPutURL(ctx context.Context, objectName, contentType string, expiry time.Duration) (string, error)
 	Delete(ctx context.Context, objectName string) error
+	GetPublicURL(objectName string) string
 }
 
 type MinioStorage struct {
 	internalClient *minio.Client // minio:9000 — для операций
 	externalClient *minio.Client // 149.154.65.57:9000 — для presigned URL
 	bucket         string
+	externalBaseURL *url.URL     // http://149.154.65.57:9000 — для публичных URL
 }
 
 func NewMinioStorage(internalEndpoint, externalEndpoint, accessKey, secretKey string, useSSL bool, bucket string) (Storage, error) {
@@ -47,8 +49,10 @@ func NewMinioStorage(internalEndpoint, externalEndpoint, accessKey, secretKey st
 
 	// Создаём внешний клиент (для presigned URL)
 	externalUseSSL := useSSL
+	var parsedURL *url.URL
 	if externalEndpoint != "" {
-		parsedURL, err := url.Parse(externalEndpoint)
+		var err error
+		parsedURL, err = url.Parse(externalEndpoint)
 		if err == nil {
 			externalUseSSL = parsedURL.Scheme == "https"
 			externalEndpoint = parsedURL.Host
@@ -68,6 +72,7 @@ func NewMinioStorage(internalEndpoint, externalEndpoint, accessKey, secretKey st
 		internalClient: internalClient,
 		externalClient: externalClient,
 		bucket:         bucket,
+		externalBaseURL: parsedURL,
 	}, nil
 }
 
@@ -90,4 +95,11 @@ func (s *MinioStorage) PresignedPutURL(ctx context.Context, objectName, contentT
 
 func (s *MinioStorage) Delete(ctx context.Context, objectName string) error {
 	return s.internalClient.RemoveObject(ctx, s.bucket, objectName, minio.RemoveObjectOptions{})
+}
+
+func (s *MinioStorage) GetPublicURL(objectName string) string {
+	if s.externalBaseURL == nil {
+		return objectName
+	}
+	return fmt.Sprintf("%s/%s/%s", s.externalBaseURL.String(), s.bucket, objectName)
 }

@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"HwWach/internal/dto"
 	"HwWach/internal/middleware"
 	"HwWach/internal/services"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -11,11 +13,13 @@ import (
 
 type deviceHandler struct {
 	deviceSvc services.DeviceService
+	photoSvc  services.PhotoService
 }
 
-func NewDeviceHandler(deviceSvc services.DeviceService) DeviceHandler {
+func NewDeviceHandler(deviceSvc services.DeviceService, photoSvc services.PhotoService) DeviceHandler {
 	return &deviceHandler{
 		deviceSvc: deviceSvc,
+		photoSvc:  photoSvc,
 	}
 }
 
@@ -100,8 +104,23 @@ func (d deviceHandler) ListDevicePhotos(c *gin.Context) {
 		return
 	}
 
+	// Конвертируем модели в DTO с полными URL
+	photoResponses := make([]dto.PhotoResponse, 0, len(photos))
+	for _, photo := range photos {
+		photoResp := dto.PhotoResponse{
+			UUID:      photo.UUID.String(),
+			URL:       d.photoSvc.GetPublicURL(photo.URL),
+			CreatedAt: photo.CreatedAt.Format(time.RFC3339),
+		}
+		if photo.ClientID != nil {
+			clientIDStr := photo.ClientID.String()
+			photoResp.ClientID = &clientIDStr
+		}
+		photoResponses = append(photoResponses, photoResp)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"device_uuid": deviceUUID.String(),
-		"photos":      photos,
+		"photos":      photoResponses,
 	})
 }

@@ -72,7 +72,7 @@ func NewApp() (*App, error) {
 	photoSvc := services.NewPhotoService(photoRepo, deviceRepo, minioSvc)
 	reqSvc := services.NewRequestService(requestRepo, deviceRepo, photoRepo)
 
-	deviceH := handlers.NewDeviceHandler(deviceSvc)
+	deviceH := handlers.NewDeviceHandler(deviceSvc, photoSvc)
 	photoH := handlers.NewPhotoHandler(photoSvc)
 	reqH := handlers.NewRequestHandler(reqSvc)
 

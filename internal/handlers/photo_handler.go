@@ -189,7 +189,7 @@ func (p photoHandler) ConfirmUpload(c *gin.Context) {
 	// Создаём ответ
 	photoResp := dto.PhotoResponse{
 		UUID:      photo.UUID.String(),
-		URL:       photo.URL,
+		URL:       p.photoSvc.GetPublicURL(photo.URL),
 		CreatedAt: photo.CreatedAt.Format(time.RFC3339),
 	}
 	
@@ -234,7 +234,7 @@ func (p photoHandler) ListUserPhotos(c *gin.Context) {
 	for _, photo := range photos {
 		photoResp := dto.PhotoResponse{
 			UUID:      photo.UUID.String(),
-			URL:       photo.URL,
+			URL:       p.photoSvc.GetPublicURL(photo.URL),
 			CreatedAt: photo.CreatedAt.Format(time.RFC3339),
 		}
 		if photo.ClientID != nil {
