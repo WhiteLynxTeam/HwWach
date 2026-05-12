@@ -10,24 +10,25 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pressly/goose/v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	"HwWach/internal/config"
 	"HwWach/internal/handlers"
 	"HwWach/internal/middleware"
-	"HwWach/internal/models"
 	"HwWach/internal/repository"
 	"HwWach/internal/routes"
 	"HwWach/internal/services"
 	"HwWach/internal/storage"
+	"HwWach/migrations"
 )
 
 type App struct {
-	cfg       *config.Config
-	db        *gorm.DB
-	minioSvc  storage.Storage
-	router    *gin.Engine
+	cfg      *config.Config
+	db       *gorm.DB
+	minioSvc storage.Storage
+	router   *gin.Engine
 
 	assetH handlers.AssetHandler
 	photoH handlers.PhotoHandler
@@ -44,11 +45,15 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-	if err := db.AutoMigrate(
-		&models.Asset{},
-		&models.Photo{},
-		&models.Request{},
-	); err != nil {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+	goose.SetBaseFS(migrations.FS)
+	if err := goose.SetDialect("postgres"); err != nil {
+		return nil, err
+	}
+	if err := goose.Up(sqlDB, "."); err != nil {
 		return nil, err
 	}
 
