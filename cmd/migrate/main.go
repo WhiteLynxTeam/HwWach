@@ -9,13 +9,13 @@ import (
 
 	"github.com/pressly/goose/v3"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"HwWach/migrations"
 )
 
 func main() {
 	var (
 		command   = flag.String("command", "status", "Команда: up, down, status, redo, reset")
 		dsn       = flag.String("dsn", "", "Database DSN (или переменная DATABASEDSN)")
-		migrations = flag.String("dir", "migrations", "Путь к директории с миграциями")
 	)
 	flag.Parse()
 
@@ -41,30 +41,31 @@ func main() {
 	}
 
 	// Настраиваем goose
+	goose.SetBaseFS(migrations.FS)
 	goose.SetDialect("postgres")
 
 	// Выполняем команду
 	switch *command {
 	case "up":
-		if err := goose.Up(db, *migrations); err != nil {
+		if err := goose.Up(db, "."); err != nil {
 			log.Fatalf("Ошибка выполнения up: %v", err)
 		}
 		fmt.Println("Миграции успешно применены")
 
 	case "down":
-		if err := goose.Down(db, *migrations); err != nil {
+		if err := goose.Down(db, "."); err != nil {
 			log.Fatalf("Ошибка выполнения down: %v", err)
 		}
 		fmt.Println("Последняя миграция успешно откачена")
 
 	case "redo":
-		if err := goose.Redo(db, *migrations); err != nil {
+		if err := goose.Redo(db, "."); err != nil {
 			log.Fatalf("Ошибка выполнения redo: %v", err)
 		}
 		fmt.Println("Миграция успешно перезапущена")
 
 	case "reset":
-		if err := goose.Reset(db, *migrations); err != nil {
+		if err := goose.Reset(db, "."); err != nil {
 			log.Fatalf("Ошибка выполнения reset: %v", err)
 		}
 		fmt.Println("Все миграции успешно откачены")

@@ -24,20 +24,21 @@ WORKDIR /app
 # Установка зависимостей для сборки
 RUN apk add --no-cache git
 
-# Кэширование зависимостей
+# Кэширование зависимостей через BuildKit cache mount
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download && go mod verify
 
 # Копирование исходного кода
 COPY . .
 
-# Сборка приложения
+# Сборка приложения с кэшированием build cache
 # -w — убирает информацию для отладки DWARF
 # -s — убирает таблицу символов
 #Экономия: ~30% размера бинарника
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -a \
-    -installsuffix cgo \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-w -s" \
     -o main ./cmd/main.go
 
@@ -58,8 +59,8 @@ RUN apk --no-cache add tzdata ca-certificates && \
 # Копирование бинарного файла
 COPY --from=builder /app/main .
 
-# Копирование миграций (если будут)
-RUN if [ -d /app/migrations ]; then mkdir -p ./migrations && cp -r /app/migrations/* ./migrations/ 2>/dev/null || true; fi
+# Копирование миграций из builder
+COPY --from=builder /app/migrations ./migrations
 
 # Запуск от непривилегированного пользователя
 USER appuser
