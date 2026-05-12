@@ -8,7 +8,7 @@ import (
 
 //	@title			HwWach API
 //	@version		1.0
-//	@description	API для управления устройствами и фотографиями
+//	@description	API для управления активами и фотографиями
 
 //	@contact.name	API Support
 //	@contact.email	support@hwwach.com

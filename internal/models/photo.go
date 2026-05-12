@@ -15,7 +15,7 @@ const (
 )
 
 // Photo фотография устройства
-// @Description Фотография загруженная пользователем и привязанная к устройству
+// @Description Фотография загруженная пользователем и привязанная к assets
 type Photo struct {
 	UUID      uuid.UUID   `gorm:"type:uuid;primaryKey" json:"uuid" swaggertype:"string" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"` // UUID фотографии (v7, генерируется сервером)
 	ClientID  *uuid.UUID  `gorm:"type:uuid;uniqueIndex" json:"client_id,omitempty" swaggertype:"string" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`                          // UUID сгенерированный клиентом (для оптимистичного UI)
@@ -29,5 +29,5 @@ type Photo struct {
 	UpdatedAt time.Time   `json:"updated_at"`                                                                                                                                                               // Дата обновления
 	DeletedAt time.Time   `json:"deleted_at,omitempty"`                                                                                                                                                     // Дата удаления (soft delete)
 
-	Devices []Device `gorm:"many2many:device_photos;joinForeignKey:PhotoUUID;joinReferences:DeviceUUID" json:"devices,omitempty"` // Устройства на фото (many-to-many)
+	Assets []Asset `gorm:"many2many:asset_photos;joinForeignKey:PhotoUUID;joinReferences:AssetUUID" json:"assets,omitempty"` // Активы на фото (many-to-many)
 }

@@ -23,14 +23,14 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/devices": {
+        "/assets": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Получение всех устройств авторизованного пользователя",
+                "description": "Получение всех assets авторизованного пользователя (без вложений)",
                 "consumes": [
                     "application/json"
                 ],
@@ -38,16 +38,68 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "devices"
+                    "assets"
                 ],
-                "summary": "Список устройств пользователя",
+                "summary": "Список assets пользователя",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.Device"
+                            "$ref": "#/definitions/dto.AssetListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Создание нового asset в системе",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assets"
+                ],
+                "summary": "Создать asset",
+                "parameters": [
+                    {
+                        "description": "Данные asset",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateAssetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AssetResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     },
@@ -63,14 +115,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/devices/{id}": {
+        "/assets/{id}": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Получение информации об устройстве по идентификатору",
+                "description": "Получение информации об asset по идентификатору",
                 "consumes": [
                     "application/json"
                 ],
@@ -78,13 +130,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "devices"
+                    "assets"
                 ],
-                "summary": "Получить устройство по ID",
+                "summary": "Получить asset по ID",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "ID устройства (uuid)",
+                        "description": "ID asset (uuid)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -94,7 +146,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.Device"
+                            "$ref": "#/definitions/models.Asset"
                         }
                     },
                     "401": {
@@ -118,14 +170,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/devices/{id}/photos": {
+        "/assets/{id}/photos": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Получение всех фотографий для указанного устройства",
+                "description": "Получение всех фотографий для указанного asset",
                 "consumes": [
                     "application/json"
                 ],
@@ -133,14 +185,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "devices",
-                    "photos"
+                    "assets"
                 ],
-                "summary": "Список фотографий устройства",
+                "summary": "Список фотографий asset",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "ID устройства (uuid)",
+                        "description": "ID asset (uuid)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -565,19 +616,105 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dto.AssetListResponse": {
+            "type": "object",
+            "properties": {
+                "assets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AssetResponse"
+                    }
+                },
+                "user_uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AssetResponse": {
+            "type": "object",
+            "properties": {
+                "admin_comment": {
+                    "type": "string"
+                },
+                "client_id": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "inventory_num": {
+                    "type": "string"
+                },
+                "specification": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_uuid": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "uuid": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "verified_at": {
+                    "type": "string",
+                    "example": "2026-05-11T12:00:00Z"
+                }
+            }
+        },
         "dto.ConfirmUploadRequest": {
             "type": "object",
             "required": [
                 "photo_uuid"
             ],
             "properties": {
-                "device_id": {
+                "asset_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "photo_uuid": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "dto.CreateAssetRequest": {
+            "type": "object",
+            "required": [
+                "inventory_num",
+                "type"
+            ],
+            "properties": {
+                "client_id": {
+                    "description": "UUID сгенерированный клиентом",
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "inventory_num": {
+                    "type": "string",
+                    "example": "ИНВ-001"
+                },
+                "specification": {
+                    "type": "string",
+                    "example": "MacBook Pro 16"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "active"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "ноутбук"
                 }
             }
         },
@@ -664,10 +801,19 @@ const docTemplate = `{
                 }
             }
         },
-        "models.Device": {
-            "description": "Устройство представляет собой физический объект с инвентарным номером",
+        "models.Asset": {
+            "description": "Актив представляет собой физический объект с инвентарным номером",
             "type": "object",
             "properties": {
+                "admin_comment": {
+                    "description": "Комментарий администратора",
+                    "type": "string"
+                },
+                "client_id": {
+                    "description": "UUID сгенерированный клиентом (для оптимистичного UI)",
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
                 "created_at": {
                     "description": "Дата создания",
                     "type": "string"
@@ -681,14 +827,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "photos": {
-                    "description": "Фотографии (many-to-many)",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.Photo"
                     }
                 },
                 "requests": {
-                    "description": "Запросы на обслуживание",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.Request"
@@ -700,10 +844,15 @@ const docTemplate = `{
                 },
                 "status": {
                     "description": "Статус",
-                    "type": "string"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.AssetStatus"
+                        }
+                    ],
+                    "example": "active"
                 },
                 "type": {
-                    "description": "Тип устройства",
+                    "description": "Тип актива",
                     "type": "string"
                 },
                 "updated_at": {
@@ -716,16 +865,62 @@ const docTemplate = `{
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "uuid": {
-                    "description": "UUID устройства (v7)",
+                    "description": "UUID актива (v7)",
                     "type": "string",
                     "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "verified_at": {
+                    "description": "Дата верификации админом",
+                    "type": "string"
                 }
             }
         },
+        "models.AssetStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "inactive",
+                "maintenance",
+                "repair",
+                "decommissioned",
+                "lost"
+            ],
+            "x-enum-comments": {
+                "AssetStatusActive": "В эксплуатации",
+                "AssetStatusDecommissioned": "Списан",
+                "AssetStatusInactive": "Не используется",
+                "AssetStatusLost": "Утерян",
+                "AssetStatusMaintenance": "На обслуживании",
+                "AssetStatusRepair": "В ремонте"
+            },
+            "x-enum-descriptions": [
+                "В эксплуатации",
+                "Не используется",
+                "На обслуживании",
+                "В ремонте",
+                "Списан",
+                "Утерян"
+            ],
+            "x-enum-varnames": [
+                "AssetStatusActive",
+                "AssetStatusInactive",
+                "AssetStatusMaintenance",
+                "AssetStatusRepair",
+                "AssetStatusDecommissioned",
+                "AssetStatusLost"
+            ]
+        },
         "models.Photo": {
-            "description": "Фотография загруженная пользователем и привязанная к устройству",
+            "description": "Фотография загруженная пользователем и привязанная к assets",
             "type": "object",
             "properties": {
+                "assets": {
+                    "description": "Активы на фото (many-to-many)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Asset"
+                    }
+                },
                 "client_id": {
                     "description": "UUID сгенерированный клиентом (для оптимистичного UI)",
                     "type": "string",
@@ -743,13 +938,6 @@ const docTemplate = `{
                 "deleted_at": {
                     "description": "Дата удаления (soft delete)",
                     "type": "string"
-                },
-                "devices": {
-                    "description": "Устройства на фото (many-to-many)",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Device"
-                    }
                 },
                 "file_name": {
                     "description": "Имя файла",
@@ -813,6 +1001,19 @@ const docTemplate = `{
             "description": "Запрос создаётся пользователем для обслуживания или ремонта устройства",
             "type": "object",
             "properties": {
+                "asset": {
+                    "description": "Актив (FK)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Asset"
+                        }
+                    ]
+                },
+                "asset_uuid": {
+                    "description": "UUID актива",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
                 "created_at": {
                     "description": "Дата создания",
                     "type": "string"
@@ -820,19 +1021,6 @@ const docTemplate = `{
                 "deleted_at": {
                     "description": "Дата удаления (soft delete)",
                     "type": "string"
-                },
-                "device": {
-                    "description": "Устройство (FK)",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Device"
-                        }
-                    ]
-                },
-                "device_uuid": {
-                    "description": "UUID устройства",
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "message": {
                     "description": "Текст запроса",
@@ -880,7 +1068,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "HwWach API",
-	Description:      "API для управления устройствами и фотографиями",
+	Description:      "API для управления активами и фотографиями",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

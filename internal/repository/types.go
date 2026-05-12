@@ -9,7 +9,7 @@ type userRepo struct {
 	baseRepo
 }
 
-type deviceRepo struct {
+type assetRepo struct {
 	baseRepo
 }
 
