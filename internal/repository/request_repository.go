@@ -11,7 +11,7 @@ import (
 type RequestRepo interface {
 	Create(ctx context.Context, req *models.Request) error
 	GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Request, error)
-	ListByDeviceUUID(ctx context.Context, deviceUUID uuid.UUID) ([]*models.Request, error)
+	ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Request, error)
 	ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Request, error)
 	Delete(ctx context.Context, uuid uuid.UUID) error
 	UpdateStatus(ctx context.Context, uuid uuid.UUID, newStatus string) error
@@ -40,7 +40,7 @@ func (r requestRepo) GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Req
 	panic("implement me")
 }
 
-func (r requestRepo) ListByDeviceUUID(ctx context.Context, deviceUUID uuid.UUID) ([]*models.Request, error) {
+func (r requestRepo) ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Request, error) {
 	//TODO implement me
 	panic("implement me")
 }

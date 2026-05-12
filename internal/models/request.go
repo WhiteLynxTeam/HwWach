@@ -10,7 +10,7 @@ import (
 // @Description Запрос создаётся пользователем для обслуживания или ремонта устройства
 type Request struct {
 	UUID       uuid.UUID `gorm:"type:uuid;primaryKey" json:"uuid" swaggertype:"string" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"` // UUID запроса (v7)
-	DeviceUUID uuid.UUID `gorm:"type:uuid;not null;index;column:device_id" json:"device_uuid" swaggertype:"string" example:"550e8400-e29b-41d4-a716-446655440000"` // UUID устройства
+	AssetUUID uuid.UUID `gorm:"type:uuid;not null;index;column:asset_id" json:"asset_uuid" swaggertype:"string" example:"550e8400-e29b-41d4-a716-446655440000"` // UUID актива
 	UserUUID   uuid.UUID `gorm:"type:uuid;not null;index;column:user_id" json:"user_uuid" swaggertype:"string" example:"550e8400-e29b-41d4-a716-446655440000"`     // UUID владельца (из auth-сервиса)
 	CreatedAt  time.Time `json:"created_at"`                                                                                                                       // Дата создания
 	Message    string    `gorm:"type:text;not null" json:"message"`                                                                                                // Текст запроса
@@ -19,5 +19,5 @@ type Request struct {
 	UpdatedAt  time.Time `json:"updated_at"`                                                                                                                       // Дата обновления
 	DeletedAt  time.Time `json:"deleted_at,omitempty"`                                                                                                             // Дата удаления (soft delete)
 
-	Device Device `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"device,omitempty"` // Устройство (FK)
+	Asset Asset `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"asset,omitempty"` // Актив (FK)
 }

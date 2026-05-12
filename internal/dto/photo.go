@@ -25,7 +25,7 @@ type UploadPhotoResponse struct {
 // ConfirmUploadRequest запрос на подтверждение загрузки
 type ConfirmUploadRequest struct {
 	PhotoUUID string `json:"photo_uuid" binding:"required" example:"550e8400-e29b-41d4-a716-446655440000"`
-	DeviceID  string `json:"device_id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
+	AssetID  string `json:"asset_id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
 }
 
 // PhotoResponse ответ с информацией о фотографии

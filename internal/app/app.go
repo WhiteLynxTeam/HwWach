@@ -24,14 +24,14 @@ import (
 )
 
 type App struct {
-	cfg      *config.Config
-	db       *gorm.DB
-	minioSvc storage.Storage
-	router   *gin.Engine
+	cfg       *config.Config
+	db        *gorm.DB
+	minioSvc  storage.Storage
+	router    *gin.Engine
 
-	deviceH handlers.DeviceHandler
-	photoH  handlers.PhotoHandler
-	reqH    handlers.RequestHandler
+	assetH handlers.AssetHandler
+	photoH handlers.PhotoHandler
+	reqH   handlers.RequestHandler
 }
 
 func NewApp() (*App, error) {
@@ -45,7 +45,7 @@ func NewApp() (*App, error) {
 	}
 
 	if err := db.AutoMigrate(
-		&models.Device{},
+		&models.Asset{},
 		&models.Photo{},
 		&models.Request{},
 	); err != nil {
@@ -64,28 +64,28 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-	deviceRepo := repository.NewDeviceRepo(db)
+	assetRepo := repository.NewAssetRepo(db)
 	photoRepo := repository.NewPhotoRepo(db)
 	requestRepo := repository.NewRequestRepo(db)
 
-	deviceSvc := services.NewDeviceService(deviceRepo, photoRepo)
-	photoSvc := services.NewPhotoService(photoRepo, deviceRepo, minioSvc)
-	reqSvc := services.NewRequestService(requestRepo, deviceRepo, photoRepo)
+	assetSvc := services.NewAssetService(assetRepo, photoRepo)
+	photoSvc := services.NewPhotoService(photoRepo, assetRepo, minioSvc)
+	reqSvc := services.NewRequestService(requestRepo, assetRepo, photoRepo)
 
-	deviceH := handlers.NewDeviceHandler(deviceSvc, photoSvc)
+	assetH := handlers.NewAssetHandler(assetSvc, photoSvc)
 	photoH := handlers.NewPhotoHandler(photoSvc)
 	reqH := handlers.NewRequestHandler(reqSvc)
 
 	router := gin.Default()
 	jwtMW := middleware.JWTMiddleware([]byte(cfg.JWTSecret))
-	routes.SetupRoutes(router, deviceH, photoH, reqH, jwtMW)
+	routes.SetupRoutes(router, assetH, photoH, reqH, jwtMW)
 
 	return &App{
 		cfg:      cfg,
 		db:       db,
 		minioSvc: minioSvc,
 		router:   router,
-		deviceH:  deviceH,
+		assetH:   assetH,
 		photoH:   photoH,
 		reqH:     reqH,
 	}, nil

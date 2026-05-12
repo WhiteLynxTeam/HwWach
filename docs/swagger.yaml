@@ -1,8 +1,46 @@
 basePath: /
 definitions:
+  dto.AssetListResponse:
+    properties:
+      assets:
+        items:
+          $ref: '#/definitions/dto.AssetResponse'
+        type: array
+      user_uuid:
+        type: string
+    type: object
+  dto.AssetResponse:
+    properties:
+      admin_comment:
+        type: string
+      client_id:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+      created_at:
+        type: string
+      inventory_num:
+        type: string
+      specification:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      user_uuid:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      uuid:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+      verified_at:
+        example: "2026-05-11T12:00:00Z"
+        type: string
+    type: object
   dto.ConfirmUploadRequest:
     properties:
-      device_id:
+      asset_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       photo_uuid:
@@ -10,6 +48,28 @@ definitions:
         type: string
     required:
     - photo_uuid
+    type: object
+  dto.CreateAssetRequest:
+    properties:
+      client_id:
+        description: UUID сгенерированный клиентом
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+      inventory_num:
+        example: ИНВ-001
+        type: string
+      specification:
+        example: MacBook Pro 16
+        type: string
+      status:
+        example: active
+        type: string
+      type:
+        example: ноутбук
+        type: string
+    required:
+    - inventory_num
+    - type
     type: object
   dto.PhotoListResponse:
     properties:
@@ -68,9 +128,16 @@ definitions:
       upload_url:
         type: string
     type: object
-  models.Device:
-    description: Устройство представляет собой физический объект с инвентарным номером
+  models.Asset:
+    description: Актив представляет собой физический объект с инвентарным номером
     properties:
+      admin_comment:
+        description: Комментарий администратора
+        type: string
+      client_id:
+        description: UUID сгенерированный клиентом (для оптимистичного UI)
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
       created_at:
         description: Дата создания
         type: string
@@ -81,12 +148,10 @@ definitions:
         description: Инвентарный номер
         type: string
       photos:
-        description: Фотографии (many-to-many)
         items:
           $ref: '#/definitions/models.Photo'
         type: array
       requests:
-        description: Запросы на обслуживание
         items:
           $ref: '#/definitions/models.Request'
         type: array
@@ -94,10 +159,12 @@ definitions:
         description: Спецификация
         type: string
       status:
+        allOf:
+        - $ref: '#/definitions/models.AssetStatus'
         description: Статус
-        type: string
+        example: active
       type:
-        description: Тип устройства
+        description: Тип актива
         type: string
       updated_at:
         description: Дата обновления
@@ -107,13 +174,51 @@ definitions:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       uuid:
-        description: UUID устройства (v7)
+        description: UUID актива (v7)
         example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
         type: string
+      verified_at:
+        description: Дата верификации админом
+        type: string
     type: object
+  models.AssetStatus:
+    enum:
+    - active
+    - inactive
+    - maintenance
+    - repair
+    - decommissioned
+    - lost
+    type: string
+    x-enum-comments:
+      AssetStatusActive: В эксплуатации
+      AssetStatusDecommissioned: Списан
+      AssetStatusInactive: Не используется
+      AssetStatusLost: Утерян
+      AssetStatusMaintenance: На обслуживании
+      AssetStatusRepair: В ремонте
+    x-enum-descriptions:
+    - В эксплуатации
+    - Не используется
+    - На обслуживании
+    - В ремонте
+    - Списан
+    - Утерян
+    x-enum-varnames:
+    - AssetStatusActive
+    - AssetStatusInactive
+    - AssetStatusMaintenance
+    - AssetStatusRepair
+    - AssetStatusDecommissioned
+    - AssetStatusLost
   models.Photo:
-    description: Фотография загруженная пользователем и привязанная к устройству
+    description: Фотография загруженная пользователем и привязанная к assets
     properties:
+      assets:
+        description: Активы на фото (many-to-many)
+        items:
+          $ref: '#/definitions/models.Asset'
+        type: array
       client_id:
         description: UUID сгенерированный клиентом (для оптимистичного UI)
         example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
@@ -128,11 +233,6 @@ definitions:
       deleted_at:
         description: Дата удаления (soft delete)
         type: string
-      devices:
-        description: Устройства на фото (many-to-many)
-        items:
-          $ref: '#/definitions/models.Device'
-        type: array
       file_name:
         description: Имя файла
         example: photo.jpg
@@ -178,19 +278,19 @@ definitions:
   models.Request:
     description: Запрос создаётся пользователем для обслуживания или ремонта устройства
     properties:
+      asset:
+        allOf:
+        - $ref: '#/definitions/models.Asset'
+        description: Актив (FK)
+      asset_uuid:
+        description: UUID актива
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
       created_at:
         description: Дата создания
         type: string
       deleted_at:
         description: Дата удаления (soft delete)
-        type: string
-      device:
-        allOf:
-        - $ref: '#/definitions/models.Device'
-        description: Устройство (FK)
-      device_uuid:
-        description: UUID устройства
-        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       message:
         description: Текст запроса
@@ -218,7 +318,7 @@ info:
   contact:
     email: support@hwwach.com
     name: API Support
-  description: API для управления устройствами и фотографиями
+  description: API для управления активами и фотографиями
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0
@@ -226,20 +326,18 @@ info:
   title: HwWach API
   version: "1.0"
 paths:
-  /devices:
+  /assets:
     get:
       consumes:
       - application/json
-      description: Получение всех устройств авторизованного пользователя
+      description: Получение всех assets авторизованного пользователя (без вложений)
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/models.Device'
-            type: array
+            $ref: '#/definitions/dto.AssetListResponse'
         "401":
           description: Unauthorized
           schema:
@@ -248,16 +346,51 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Список устройств пользователя
+      summary: Список assets пользователя
       tags:
-      - devices
-  /devices/{id}:
+      - assets
+    post:
+      consumes:
+      - application/json
+      description: Создание нового asset в системе
+      parameters:
+      - description: Данные asset
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateAssetRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.AssetResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Создать asset
+      tags:
+      - assets
+  /assets/{id}:
     get:
       consumes:
       - application/json
-      description: Получение информации об устройстве по идентификатору
+      description: Получение информации об asset по идентификатору
       parameters:
-      - description: ID устройства (uuid)
+      - description: ID asset (uuid)
         in: path
         name: id
         required: true
@@ -268,7 +401,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Device'
+            $ref: '#/definitions/models.Asset'
         "401":
           description: Unauthorized
           schema:
@@ -283,16 +416,16 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Получить устройство по ID
+      summary: Получить asset по ID
       tags:
-      - devices
-  /devices/{id}/photos:
+      - assets
+  /assets/{id}/photos:
     get:
       consumes:
       - application/json
-      description: Получение всех фотографий для указанного устройства
+      description: Получение всех фотографий для указанного asset
       parameters:
-      - description: ID устройства (uuid)
+      - description: ID asset (uuid)
         in: path
         name: id
         required: true
@@ -320,10 +453,9 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Список фотографий устройства
+      summary: Список фотографий asset
       tags:
-      - devices
-      - photos
+      - assets
   /photos:
     get:
       consumes:

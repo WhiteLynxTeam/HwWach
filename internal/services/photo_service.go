@@ -17,24 +17,24 @@ type PhotoService interface {
 	GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Photo, error)
 	GetByClientID(ctx context.Context, clientID uuid.UUID) (*models.Photo, error)
 	ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error)
-	ListByDeviceUUID(ctx context.Context, deviceUUID uuid.UUID) ([]*models.Photo, error)
+	ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error)
 	GetPresignedUploadURL(ctx context.Context, objectName, contentType string) (string, error)
 	GetPublicURL(objectName string) string
 }
 
 type photoService struct {
-	photoRepo  repository.PhotoRepo
-	deviceRepo repository.DeviceRepo
-	minioSVC   storage.Storage
+	photoRepo repository.PhotoRepo
+	assetRepo repository.AssetRepo
+	minioSVC  storage.Storage
 }
 
 func NewPhotoService(
 	photoRepo repository.PhotoRepo,
-	deviceRepo repository.DeviceRepo,
+	assetRepo repository.AssetRepo,
 	minioSVC storage.Storage) PhotoService {
 	return &photoService{
 		photoRepo:  photoRepo,
-		deviceRepo: deviceRepo,
+		assetRepo: assetRepo,
 		minioSVC:   minioSVC,
 	}
 }
@@ -80,8 +80,8 @@ func (s *photoService) ListByUserUUID(ctx context.Context, userUUID uuid.UUID) (
 	return s.photoRepo.ListByUserUUID(ctx, userUUID)
 }
 
-func (s *photoService) ListByDeviceUUID(ctx context.Context, deviceUUID uuid.UUID) ([]*models.Photo, error) {
-	return s.photoRepo.ListByDeviceUUID(ctx, deviceUUID)
+func (s *photoService) ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error) {
+	return s.photoRepo.ListByAssetUUID(ctx, assetUUID)
 }
 
 func (s *photoService) GetPresignedUploadURL(ctx context.Context, objectName, contentType string) (string, error) {

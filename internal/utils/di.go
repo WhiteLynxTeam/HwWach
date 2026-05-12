@@ -10,7 +10,7 @@ import (
 )
 
 type DI struct {
-	DeviceHandler  handlers.DeviceHandler
+	AssetHandler   handlers.AssetHandler
 	PhotoHandler   handlers.PhotoHandler
 	RequestHandler handlers.RequestHandler
 }
@@ -19,20 +19,20 @@ func InitializeDI(
 	db *gorm.DB,
 	minioStorage storage.Storage,
 ) *DI {
-	deviceRepo := repository.NewDeviceRepo(db)
+	assetRepo := repository.NewAssetRepo(db)
 	photoRepo := repository.NewPhotoRepo(db)
 	requestRepo := repository.NewRequestRepo(db)
 
-	deviceSvc := services.NewDeviceService(deviceRepo, photoRepo)
-	photoSvc := services.NewPhotoService(photoRepo, deviceRepo, minioStorage)
-	reqSvc := services.NewRequestService(requestRepo, deviceRepo, photoRepo)
+	assetSvc := services.NewAssetService(assetRepo, photoRepo)
+	photoSvc := services.NewPhotoService(photoRepo, assetRepo, minioStorage)
+	reqSvc := services.NewRequestService(requestRepo, assetRepo, photoRepo)
 
-	deviceH := handlers.NewDeviceHandler(deviceSvc)
+	assetH := handlers.NewAssetHandler(assetSvc, photoSvc)
 	photoH := handlers.NewPhotoHandler(photoSvc)
 	reqH := handlers.NewRequestHandler(reqSvc)
 
 	return &DI{
-		DeviceHandler:  deviceH,
+		AssetHandler:   assetH,
 		PhotoHandler:   photoH,
 		RequestHandler: reqH,
 	}

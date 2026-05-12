@@ -14,7 +14,7 @@ type PhotoRepo interface {
 	GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Photo, error)
 	GetByClientID(ctx context.Context, clientID uuid.UUID) (*models.Photo, error)
 	ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error)
-	ListByDeviceUUID(ctx context.Context, deviceUUID uuid.UUID) ([]*models.Photo, error)
+	ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error)
 	Detach(ctx context.Context, photoUUID uuid.UUID) error
 	Delete(ctx context.Context, uuid uuid.UUID) error
 }
@@ -61,7 +61,7 @@ func (p photoRepo) ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*m
 	return photos, nil
 }
 
-func (p photoRepo) ListByDeviceUUID(ctx context.Context, deviceUUID uuid.UUID) ([]*models.Photo, error) {
+func (p photoRepo) ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error) {
 	//TODO implement me
 	panic("implement me")
 }

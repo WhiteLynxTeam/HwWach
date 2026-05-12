@@ -10,7 +10,7 @@ import (
 
 func SetupRoutes(
 	r *gin.Engine,
-	deviceHandler handlers.DeviceHandler,
+	assetHandler handlers.AssetHandler,
 	photoHandler handlers.PhotoHandler,
 	requestHandler handlers.RequestHandler,
 	jwtMiddleware gin.HandlerFunc,
@@ -22,11 +22,12 @@ func SetupRoutes(
 	// Swagger UI
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	dev := r.Group("/devices", jwtMiddleware)
+	assets := r.Group("/assets", jwtMiddleware)
 	{
-		dev.GET("", deviceHandler.ListUserDevices)
-		dev.GET("/:id", deviceHandler.GetDevice)
-		dev.GET("/:id/photos", deviceHandler.ListDevicePhotos)
+		assets.POST("", assetHandler.CreateAsset)
+		assets.GET("", assetHandler.ListUserAssets)
+		assets.GET("/:id", assetHandler.GetAsset)
+		assets.GET("/:id/photos", assetHandler.ListAssetPhotos)
 	}
 
 	photos := r.Group("/photos", jwtMiddleware)
