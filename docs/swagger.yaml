@@ -1,5 +1,48 @@
 basePath: /
 definitions:
+  dto.ApproveChangeRequestInput:
+    properties:
+      admin_comment:
+        example: Изменения приняты
+        type: string
+      status:
+        enum:
+        - approved
+        - rejected
+        example: approved
+        type: string
+    required:
+    - status
+    type: object
+  dto.AssetChangeRequestResponse:
+    properties:
+      admin_comment:
+        type: string
+      asset_uuid:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+      created_at:
+        type: string
+      proposed_data:
+        type: object
+      reason:
+        example: Неверно указан тип
+        type: string
+      status:
+        example: pending
+        type: string
+      type:
+        example: update
+        type: string
+      updated_at:
+        type: string
+      user_uuid:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      uuid:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+    type: object
   dto.AssetListResponse:
     properties:
       assets:
@@ -69,6 +112,23 @@ definitions:
         type: string
     required:
     - inventory_num
+    - type
+    type: object
+  dto.CreateChangeRequestInput:
+    properties:
+      proposed_data:
+        type: object
+      reason:
+        example: Неверно указан тип
+        type: string
+      type:
+        enum:
+        - update
+        - delete
+        example: update
+        type: string
+    required:
+    - reason
     - type
     type: object
   dto.PhotoListResponse:
@@ -147,6 +207,8 @@ definitions:
       inventory_num:
         description: Инвентарный номер
         type: string
+      moderation_status:
+        $ref: '#/definitions/models.ModerationStatus'
       photos:
         items:
           $ref: '#/definitions/models.Photo'
@@ -211,6 +273,16 @@ definitions:
     - AssetStatusRepair
     - AssetStatusDecommissioned
     - AssetStatusLost
+  models.ModerationStatus:
+    enum:
+    - pending
+    - approved
+    - rejected
+    type: string
+    x-enum-varnames:
+    - ModerationPending
+    - ModerationApproved
+    - ModerationRejected
   models.Photo:
     description: Фотография загруженная пользователем и привязанная к assets
     properties:
@@ -419,6 +491,54 @@ paths:
       summary: Получить asset по ID
       tags:
       - assets
+  /assets/{id}/change-requests:
+    post:
+      consumes:
+      - application/json
+      description: Пользователь создает заявку на редактирование или удаление своего
+        актива
+      parameters:
+      - description: ID актива (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Данные заявки
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateChangeRequestInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.AssetChangeRequestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Создать заявку на изменение
+      tags:
+      - asset-change-requests
   /assets/{id}/photos:
     get:
       consumes:
@@ -456,6 +576,76 @@ paths:
       summary: Список фотографий asset
       tags:
       - assets
+  /assets/change-requests:
+    get:
+      consumes:
+      - application/json
+      description: Admin only. Получить список всех заявок со статусом pending (для
+        администратора)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.AssetChangeRequestResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список всех заявок (Admin only)
+      tags:
+      - asset-change-requests
+  /assets/change-requests/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Admin only. Администратор меняет статус заявки и применяет её (если
+        approved)
+      parameters:
+      - description: ID заявки (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Новый статус и комментарий
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ApproveChangeRequestInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Одобрить/отклонить заявку (Admin only)
+      tags:
+      - asset-change-requests
   /photos:
     get:
       consumes:
