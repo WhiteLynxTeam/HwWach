@@ -152,6 +152,21 @@ definitions:
       uuid:
         type: string
     type: object
+  dto.UpdateAssetRequest:
+    properties:
+      inventory_num:
+        example: ИНВ-002
+        type: string
+      specification:
+        example: MacBook Pro 16 2023
+        type: string
+      status:
+        example: inactive
+        type: string
+      type:
+        example: ноутбук
+        type: string
+    type: object
   dto.UploadPhotoRequest:
     properties:
       client_id:
@@ -489,6 +504,58 @@ paths:
       security:
       - BearerAuth: []
       summary: Получить asset по ID
+      tags:
+      - assets
+    put:
+      consumes:
+      - application/json
+      description: Частичное обновление asset, если он еще не проверен администратором
+      parameters:
+      - description: ID asset (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Данные для обновления
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateAssetRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AssetResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Редактировать asset (до проверки)
       tags:
       - assets
   /assets/{id}/change-requests:
