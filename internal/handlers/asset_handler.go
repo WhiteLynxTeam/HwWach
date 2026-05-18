@@ -185,6 +185,49 @@ func (a assetHandler) ListAssetPhotos(c *gin.Context) {
 	})
 }
 
+// UpdateAsset godoc
+// @Summary      Редактировать asset (до проверки)
+// @Description  Частичное обновление asset, если он еще не проверен администратором
+// @Tags         assets
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string                  true  "ID asset (uuid)"
+// @Param        request  body      dto.UpdateAssetRequest  true  "Данные для обновления"
+// @Success      200      {object}  dto.AssetResponse
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
+// @Failure      404      {object}  map[string]string
+// @Router       /assets/{id} [put]
+// @Security     BearerAuth
+func (a assetHandler) UpdateAsset(c *gin.Context) {
+	assetUUID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid uuid format"})
+		return
+	}
+
+	userUUID, ok := middleware.RequireUserUUID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.UpdateAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+		return
+	}
+
+	updatedAsset, err := a.assetSvc.UpdatePending(c.Request.Context(), userUUID, assetUUID, &req)
+	if err != nil {
+		// Упрощенная обработка ошибок (в реальности можно проверять типы ошибок)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, assetToResponse(updatedAsset))
+}
+
 // assetToResponse конвертирует модель Asset в DTO AssetResponse
 func assetToResponse(asset *models.Asset) dto.AssetResponse {
 	resp := dto.AssetResponse{

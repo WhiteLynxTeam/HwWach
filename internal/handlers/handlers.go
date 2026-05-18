@@ -6,6 +6,7 @@ type AssetHandler interface {
 	CreateAsset(c *gin.Context)
 	ListUserAssets(c *gin.Context)
 	GetAsset(c *gin.Context)
+	UpdateAsset(c *gin.Context)
 	ListAssetPhotos(c *gin.Context)
 }
 
