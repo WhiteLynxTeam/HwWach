@@ -13,6 +13,7 @@ func SetupRoutes(
 	assetHandler handlers.AssetHandler,
 	photoHandler handlers.PhotoHandler,
 	requestHandler handlers.RequestHandler,
+	changeRequestHandler handlers.AssetChangeRequestHandler,
 	jwtMiddleware gin.HandlerFunc,
 ) {
 	r.GET("/health", func(c *gin.Context) {
@@ -27,7 +28,12 @@ func SetupRoutes(
 		assets.POST("", assetHandler.CreateAsset)
 		assets.GET("", assetHandler.ListUserAssets)
 		assets.GET("/:id", assetHandler.GetAsset)
+		assets.PUT("/:id", assetHandler.UpdateAsset)
 		assets.GET("/:id/photos", assetHandler.ListAssetPhotos)
+
+		assets.POST("/:id/change-requests", changeRequestHandler.CreateRequest)
+		assets.GET("/change-requests", changeRequestHandler.ListPending)
+		assets.PATCH("/change-requests/:id", changeRequestHandler.ApproveRequest)
 	}
 
 	photos := r.Group("/photos", jwtMiddleware)

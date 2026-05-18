@@ -9,6 +9,14 @@ type CreateAssetRequest struct {
 	Status        string  `json:"status" example:"active"`
 }
 
+// UpdateAssetRequest запрос на частичное обновление asset до проверки админом
+type UpdateAssetRequest struct {
+	InventoryNum  *string `json:"inventory_num,omitempty" example:"ИНВ-002"`
+	Type          *string `json:"type,omitempty" example:"ноутбук"`
+	Specification *string `json:"specification,omitempty" example:"MacBook Pro 16 2023"`
+	Status        *string `json:"status,omitempty" example:"inactive"`
+}
+
 // AssetResponse ответ с информацией об asset (без вложений)
 type AssetResponse struct {
 	UUID          string  `json:"uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`

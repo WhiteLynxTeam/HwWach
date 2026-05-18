@@ -30,9 +30,10 @@ type App struct {
 	minioSvc storage.Storage
 	router   *gin.Engine
 
-	assetH handlers.AssetHandler
-	photoH handlers.PhotoHandler
-	reqH   handlers.RequestHandler
+	assetH     handlers.AssetHandler
+	photoH     handlers.PhotoHandler
+	reqH       handlers.RequestHandler
+	changeReqH handlers.AssetChangeRequestHandler
 }
 
 func NewApp() (*App, error) {
@@ -72,27 +73,31 @@ func NewApp() (*App, error) {
 	assetRepo := repository.NewAssetRepo(db)
 	photoRepo := repository.NewPhotoRepo(db)
 	requestRepo := repository.NewRequestRepo(db)
+	changeReqRepo := repository.NewAssetChangeRequestRepo(db)
 
 	assetSvc := services.NewAssetService(assetRepo, photoRepo)
 	photoSvc := services.NewPhotoService(photoRepo, assetRepo, minioSvc)
 	reqSvc := services.NewRequestService(requestRepo, assetRepo, photoRepo)
+	changeReqSvc := services.NewAssetChangeRequestService(changeReqRepo, assetRepo)
 
 	assetH := handlers.NewAssetHandler(assetSvc, photoSvc)
 	photoH := handlers.NewPhotoHandler(photoSvc)
 	reqH := handlers.NewRequestHandler(reqSvc)
+	changeReqH := handlers.NewAssetChangeRequestHandler(changeReqSvc)
 
 	router := gin.Default()
 	jwtMW := middleware.JWTMiddleware([]byte(cfg.JWTSecret))
-	routes.SetupRoutes(router, assetH, photoH, reqH, jwtMW)
+	routes.SetupRoutes(router, assetH, photoH, reqH, changeReqH, jwtMW)
 
 	return &App{
-		cfg:      cfg,
-		db:       db,
-		minioSvc: minioSvc,
-		router:   router,
-		assetH:   assetH,
-		photoH:   photoH,
-		reqH:     reqH,
+		cfg:        cfg,
+		db:         db,
+		minioSvc:   minioSvc,
+		router:     router,
+		assetH:     assetH,
+		photoH:     photoH,
+		reqH:       reqH,
+		changeReqH: changeReqH,
 	}, nil
 }
 
