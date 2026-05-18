@@ -109,6 +109,113 @@
                 }
             }
         },
+        "/assets/change-requests": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only. Получить список всех заявок со статусом pending (для администратора)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "asset-change-requests"
+                ],
+                "summary": "Список всех заявок (Admin only)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.AssetChangeRequestResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/assets/change-requests/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin only. Администратор меняет статус заявки и применяет её (если approved)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "asset-change-requests"
+                ],
+                "summary": "Одобрить/отклонить заявку (Admin only)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID заявки (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новый статус и комментарий",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ApproveChangeRequestInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/assets/{id}": {
             "get": {
                 "security": [
@@ -141,6 +248,79 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/models.Asset"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/assets/{id}/change-requests": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Пользователь создает заявку на редактирование или удаление своего актива",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "asset-change-requests"
+                ],
+                "summary": "Создать заявку на изменение",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID актива (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные заявки",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateChangeRequestInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AssetChangeRequestResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "401": {
@@ -610,6 +790,67 @@
         }
     },
     "definitions": {
+        "dto.ApproveChangeRequestInput": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "admin_comment": {
+                    "type": "string",
+                    "example": "Изменения приняты"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "approved",
+                        "rejected"
+                    ],
+                    "example": "approved"
+                }
+            }
+        },
+        "dto.AssetChangeRequestResponse": {
+            "type": "object",
+            "properties": {
+                "admin_comment": {
+                    "type": "string"
+                },
+                "asset_uuid": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "proposed_data": {
+                    "type": "object"
+                },
+                "reason": {
+                    "type": "string",
+                    "example": "Неверно указан тип"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "pending"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "update"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_uuid": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "uuid": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                }
+            }
+        },
         "dto.AssetListResponse": {
             "type": "object",
             "properties": {
@@ -709,6 +950,30 @@
                 "type": {
                     "type": "string",
                     "example": "ноутбук"
+                }
+            }
+        },
+        "dto.CreateChangeRequestInput": {
+            "type": "object",
+            "required": [
+                "reason",
+                "type"
+            ],
+            "properties": {
+                "proposed_data": {
+                    "type": "object"
+                },
+                "reason": {
+                    "type": "string",
+                    "example": "Неверно указан тип"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "update",
+                        "delete"
+                    ],
+                    "example": "update"
                 }
             }
         },
@@ -820,6 +1085,9 @@
                     "description": "Инвентарный номер",
                     "type": "string"
                 },
+                "moderation_status": {
+                    "$ref": "#/definitions/models.ModerationStatus"
+                },
                 "photos": {
                     "type": "array",
                     "items": {
@@ -902,6 +1170,19 @@
                 "AssetStatusRepair",
                 "AssetStatusDecommissioned",
                 "AssetStatusLost"
+            ]
+        },
+        "models.ModerationStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "approved",
+                "rejected"
+            ],
+            "x-enum-varnames": [
+                "ModerationPending",
+                "ModerationApproved",
+                "ModerationRejected"
             ]
         },
         "models.Photo": {

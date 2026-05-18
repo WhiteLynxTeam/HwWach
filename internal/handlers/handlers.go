@@ -21,3 +21,9 @@ type RequestHandler interface {
 	GetRequest(c *gin.Context)
 	DeleteRequest(c *gin.Context)
 }
+
+type AssetChangeRequestHandler interface {
+	CreateRequest(c *gin.Context)
+	ListPending(c *gin.Context)
+	ApproveRequest(c *gin.Context)
+}
