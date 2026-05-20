@@ -68,14 +68,17 @@ func (s *assetService) UpdatePending(ctx context.Context, userUUID uuid.UUID, as
 	if req.InventoryNum != nil {
 		asset.InventoryNum = *req.InventoryNum
 	}
-	if req.Type != nil {
-		asset.Type = *req.Type
+	if req.Name != nil {
+		asset.Name = *req.Name
 	}
-	if req.Specification != nil {
-		asset.Specification = *req.Specification
+	if req.Category != nil {
+		asset.Category = *req.Category
 	}
-	if req.Status != nil {
-		asset.Status = models.AssetStatus(*req.Status)
+	if req.Description != nil {
+		asset.Description = *req.Description
+	}
+	if req.AssetStatus != nil {
+		asset.AssetStatus = models.AssetStatus(*req.AssetStatus)
 	}
 
 	if err := s.assetRepo.Update(ctx, asset); err != nil {

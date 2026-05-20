@@ -50,16 +50,11 @@ func (s *assetChangeRequestService) CreateRequest(ctx context.Context, userUUID,
 		return nil, errors.New("asset already has a pending change request")
 	}
 
-	var proposedDataBytes []byte
-	if req.ProposedData != nil {
-		proposedDataBytes = []byte(req.ProposedData)
-	}
-
 	newReq := &models.AssetChangeRequest{
 		AssetUUID:    assetUUID,
 		UserUUID:     userUUID,
-		Type:         models.RequestType(req.Type),
-		ProposedData: proposedDataBytes,
+		RequestType:  models.RequestType(req.Type),
+		ProposedData: []byte(req.ProposedData),
 		Reason:       req.Reason,
 		Status:       models.ModerationPending,
 	}
@@ -91,17 +86,32 @@ func (s *assetChangeRequestService) ApproveRequest(ctx context.Context, adminUUI
 			return errors.New("asset not found")
 		}
 
-		if changeReq.Type == models.RequestTypeUpdate {
+		if changeReq.RequestType == models.RequestTypeUpdate {
+			// Обновляем актив полями из заявки
+			var updateData dto.UpdateAssetRequest
 			if len(changeReq.ProposedData) > 0 {
-				// json.Unmarshal смерджит новые данные в существующую структуру актива
-				if err := json.Unmarshal(changeReq.ProposedData, asset); err != nil {
-					return errors.New("failed to apply proposed data to asset")
+				if err := json.Unmarshal(changeReq.ProposedData, &updateData); err != nil {
+					return errors.New("failed to parse proposed data: " + err.Error())
 				}
-				if err := s.assetRepo.Update(ctx, asset); err != nil {
-					return errors.New("failed to update asset")
+
+				if updateData.Name != nil {
+					asset.Name = *updateData.Name
+				}
+				if updateData.Category != nil {
+					asset.Category = *updateData.Category
+				}
+				if updateData.Description != nil {
+					asset.Description = *updateData.Description
+				}
+				if updateData.AssetStatus != nil {
+					asset.AssetStatus = models.AssetStatus(*updateData.AssetStatus)
 				}
 			}
-		} else if changeReq.Type == models.RequestTypeDelete {
+
+			if err := s.assetRepo.Update(ctx, asset); err != nil {
+				return errors.New("failed to update asset")
+			}
+		} else if changeReq.RequestType == models.RequestTypeDelete {
 			if err := s.assetRepo.Delete(ctx, changeReq.AssetUUID); err != nil {
 				return errors.New("failed to delete asset")
 			}

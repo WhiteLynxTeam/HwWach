@@ -23,8 +23,6 @@ definitions:
         type: string
       created_at:
         type: string
-      proposed_data:
-        type: object
       reason:
         example: Неверно указан тип
         type: string
@@ -56,18 +54,20 @@ definitions:
     properties:
       admin_comment:
         type: string
+      asset_status:
+        type: string
+      category:
+        type: string
       client_id:
         example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
         type: string
       created_at:
         type: string
+      description:
+        type: string
       inventory_num:
         type: string
-      specification:
-        type: string
-      status:
-        type: string
-      type:
+      name:
         type: string
       updated_at:
         type: string
@@ -94,25 +94,29 @@ definitions:
     type: object
   dto.CreateAssetRequest:
     properties:
+      asset_status:
+        example: active
+        type: string
+      category:
+        example: ноутбук
+        type: string
       client_id:
         description: UUID сгенерированный клиентом
         example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
         type: string
+      description:
+        example: MacBook Pro 16
+        type: string
       inventory_num:
         example: ИНВ-001
         type: string
-      specification:
-        example: MacBook Pro 16
-        type: string
-      status:
-        example: active
-        type: string
-      type:
-        example: ноутбук
+      name:
+        example: Ноутбук служебный
         type: string
     required:
+    - category
     - inventory_num
-    - type
+    - name
     type: object
   dto.CreateChangeRequestInput:
     properties:
@@ -154,17 +158,20 @@ definitions:
     type: object
   dto.UpdateAssetRequest:
     properties:
+      asset_status:
+        example: inactive
+        type: string
+      category:
+        example: ноутбук
+        type: string
+      description:
+        example: MacBook Pro 16 2023
+        type: string
       inventory_num:
         example: ИНВ-002
         type: string
-      specification:
-        example: MacBook Pro 16 2023
-        type: string
-      status:
-        example: inactive
-        type: string
-      type:
-        example: ноутбук
+      name:
+        example: Ноутбук служебный
         type: string
     type: object
   dto.UploadPhotoRequest:
@@ -209,6 +216,14 @@ definitions:
       admin_comment:
         description: Комментарий администратора
         type: string
+      asset_status:
+        allOf:
+        - $ref: '#/definitions/models.AssetStatus'
+        description: Статус актива
+        example: active
+      category:
+        description: Категория актива
+        type: string
       client_id:
         description: UUID сгенерированный клиентом (для оптимистичного UI)
         example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
@@ -219,11 +234,17 @@ definitions:
       deleted_at:
         description: Дата удаления (soft delete)
         type: string
+      description:
+        description: Описание актива
+        type: string
       inventory_num:
         description: Инвентарный номер
         type: string
       moderation_status:
         $ref: '#/definitions/models.ModerationStatus'
+      name:
+        description: Название актива
+        type: string
       photos:
         items:
           $ref: '#/definitions/models.Photo'
@@ -232,17 +253,6 @@ definitions:
         items:
           $ref: '#/definitions/models.Request'
         type: array
-      specification:
-        description: Спецификация
-        type: string
-      status:
-        allOf:
-        - $ref: '#/definitions/models.AssetStatus'
-        description: Статус
-        example: active
-      type:
-        description: Тип актива
-        type: string
       updated_at:
         description: Дата обновления
         type: string

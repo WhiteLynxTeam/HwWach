@@ -5,7 +5,6 @@ import (
 	"HwWach/internal/middleware"
 	"HwWach/internal/models"
 	"HwWach/internal/services"
-	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -134,17 +133,11 @@ func (h *assetChangeRequestHandler) ApproveRequest(c *gin.Context) {
 }
 
 func changeRequestToResponse(r *models.AssetChangeRequest) dto.AssetChangeRequestResponse {
-	var proposedData json.RawMessage
-	if len(r.ProposedData) > 0 {
-		proposedData = json.RawMessage(r.ProposedData)
-	}
-
 	return dto.AssetChangeRequestResponse{
 		UUID:         r.UUID.String(),
 		AssetUUID:    r.AssetUUID.String(),
 		UserUUID:     r.UserUUID.String(),
-		Type:         string(r.Type),
-		ProposedData: proposedData,
+		Type:         string(r.RequestType),
 		Reason:       r.Reason,
 		AdminComment: r.AdminComment,
 		Status:       string(r.Status),

@@ -909,9 +909,6 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
-                "proposed_data": {
-                    "type": "object"
-                },
                 "reason": {
                     "type": "string",
                     "example": "Неверно указан тип"
@@ -957,6 +954,12 @@ const docTemplate = `{
                 "admin_comment": {
                     "type": "string"
                 },
+                "asset_status": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
                 "client_id": {
                     "type": "string",
                     "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
@@ -964,16 +967,13 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "description": {
+                    "type": "string"
+                },
                 "inventory_num": {
                     "type": "string"
                 },
-                "specification": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "type": {
+                "name": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -1012,30 +1012,35 @@ const docTemplate = `{
         "dto.CreateAssetRequest": {
             "type": "object",
             "required": [
+                "category",
                 "inventory_num",
-                "type"
+                "name"
             ],
             "properties": {
+                "asset_status": {
+                    "type": "string",
+                    "example": "active"
+                },
+                "category": {
+                    "type": "string",
+                    "example": "ноутбук"
+                },
                 "client_id": {
                     "description": "UUID сгенерированный клиентом",
                     "type": "string",
                     "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
                 },
+                "description": {
+                    "type": "string",
+                    "example": "MacBook Pro 16"
+                },
                 "inventory_num": {
                     "type": "string",
                     "example": "ИНВ-001"
                 },
-                "specification": {
+                "name": {
                     "type": "string",
-                    "example": "MacBook Pro 16"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "active"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "ноутбук"
+                    "example": "Ноутбук служебный"
                 }
             }
         },
@@ -1098,21 +1103,25 @@ const docTemplate = `{
         "dto.UpdateAssetRequest": {
             "type": "object",
             "properties": {
+                "asset_status": {
+                    "type": "string",
+                    "example": "inactive"
+                },
+                "category": {
+                    "type": "string",
+                    "example": "ноутбук"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "MacBook Pro 16 2023"
+                },
                 "inventory_num": {
                     "type": "string",
                     "example": "ИНВ-002"
                 },
-                "specification": {
+                "name": {
                     "type": "string",
-                    "example": "MacBook Pro 16 2023"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "inactive"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "ноутбук"
+                    "example": "Ноутбук служебный"
                 }
             }
         },
@@ -1175,6 +1184,19 @@ const docTemplate = `{
                     "description": "Комментарий администратора",
                     "type": "string"
                 },
+                "asset_status": {
+                    "description": "Статус актива",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.AssetStatus"
+                        }
+                    ],
+                    "example": "active"
+                },
+                "category": {
+                    "description": "Категория актива",
+                    "type": "string"
+                },
                 "client_id": {
                     "description": "UUID сгенерированный клиентом (для оптимистичного UI)",
                     "type": "string",
@@ -1188,12 +1210,20 @@ const docTemplate = `{
                     "description": "Дата удаления (soft delete)",
                     "type": "string"
                 },
+                "description": {
+                    "description": "Описание актива",
+                    "type": "string"
+                },
                 "inventory_num": {
                     "description": "Инвентарный номер",
                     "type": "string"
                 },
                 "moderation_status": {
                     "$ref": "#/definitions/models.ModerationStatus"
+                },
+                "name": {
+                    "description": "Название актива",
+                    "type": "string"
                 },
                 "photos": {
                     "type": "array",
@@ -1206,23 +1236,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.Request"
                     }
-                },
-                "specification": {
-                    "description": "Спецификация",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "Статус",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.AssetStatus"
-                        }
-                    ],
-                    "example": "active"
-                },
-                "type": {
-                    "description": "Тип актива",
-                    "type": "string"
                 },
                 "updated_at": {
                     "description": "Дата обновления",

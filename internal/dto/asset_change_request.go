@@ -20,14 +20,13 @@ type ApproveChangeRequestInput struct {
 
 // AssetChangeRequestResponse используется для отдачи данных наружу
 type AssetChangeRequestResponse struct {
-	UUID         string          `json:"uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
-	AssetUUID    string          `json:"asset_uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
-	UserUUID     string          `json:"user_uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Type         string          `json:"type" example:"update"`
-	ProposedData json.RawMessage `json:"proposed_data,omitempty" swaggertype:"object"`
-	Reason       string          `json:"reason" example:"Неверно указан тип"`
-	AdminComment string          `json:"admin_comment,omitempty"`
-	Status       string          `json:"status" example:"pending"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
+	UUID         string    `json:"uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
+	AssetUUID    string    `json:"asset_uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
+	UserUUID     string    `json:"user_uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Type         string    `json:"type" example:"update"`
+	Reason       string    `json:"reason" example:"Неверно указан тип"`
+	AdminComment string    `json:"admin_comment,omitempty"`
+	Status       string    `json:"status" example:"pending"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }

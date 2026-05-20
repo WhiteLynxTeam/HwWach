@@ -49,11 +49,12 @@ func (a assetHandler) CreateAsset(c *gin.Context) {
 	}
 
 	asset := &models.Asset{
-		InventoryNum:  req.InventoryNum,
-		Type:          req.Type,
-		Specification: req.Specification,
-		Status:        models.AssetStatus(req.Status),
-		UserUUID:      userUUID,
+		InventoryNum: req.InventoryNum,
+		Name:         req.Name,
+		Category:     req.Category,
+		Description:  req.Description,
+		AssetStatus:  models.AssetStatus(req.AssetStatus),
+		UserUUID:     userUUID,
 	}
 
 	if req.ClientID != nil {
@@ -65,8 +66,8 @@ func (a assetHandler) CreateAsset(c *gin.Context) {
 		asset.ClientID = &clientUUID
 	}
 
-	if req.Status == "" {
-		asset.Status = models.AssetStatusActive
+	if req.AssetStatus == "" {
+		asset.AssetStatus = models.AssetStatusActive
 	}
 
 	if err := a.assetSvc.Create(c.Request.Context(), asset); err != nil {
@@ -231,15 +232,16 @@ func (a assetHandler) UpdateAsset(c *gin.Context) {
 // assetToResponse конвертирует модель Asset в DTO AssetResponse
 func assetToResponse(asset *models.Asset) dto.AssetResponse {
 	resp := dto.AssetResponse{
-		UUID:          asset.UUID.String(),
-		InventoryNum:  asset.InventoryNum,
-		Type:          asset.Type,
-		Specification: asset.Specification,
-		Status:        string(asset.Status),
-		UserUUID:      asset.UserUUID.String(),
-		AdminComment:  asset.AdminComment,
-		CreatedAt:     asset.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:     asset.UpdatedAt.Format(time.RFC3339),
+		UUID:         asset.UUID.String(),
+		InventoryNum: asset.InventoryNum,
+		Name:         asset.Name,
+		Category:     asset.Category,
+		Description:  asset.Description,
+		AssetStatus:  string(asset.AssetStatus),
+		UserUUID:     asset.UserUUID.String(),
+		AdminComment: asset.AdminComment,
+		CreatedAt:    asset.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:    asset.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if asset.ClientID != nil {

@@ -12,11 +12,12 @@ const (
 	RequestTypeDelete RequestType = "delete"
 )
 
+// AssetChangeRequest заявка на изменение актива
 type AssetChangeRequest struct {
-	UUID      uuid.UUID   `gorm:"type:uuid;primaryKey"`
-	AssetUUID uuid.UUID   `gorm:"type:uuid;index"`
-	UserUUID  uuid.UUID   `gorm:"type:uuid"`
-	Type      RequestType `gorm:"type:varchar(20)"` // update или delete
+	UUID        uuid.UUID   `gorm:"type:uuid;primaryKey"`
+	AssetUUID   uuid.UUID   `gorm:"type:uuid;index"`
+	UserUUID    uuid.UUID   `gorm:"type:uuid"`
+	RequestType RequestType `gorm:"column:request_type;type:varchar(20)"` // update или delete
 
 	// Новые данные, которые пользователь хочет внести (в формате JSON)
 	// Если Type == delete, это поле может быть пустым
