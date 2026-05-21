@@ -5,6 +5,7 @@ import (
 	"HwWach/internal/middleware"
 	"HwWach/internal/models"
 	"HwWach/internal/services"
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -29,7 +30,7 @@ func NewAssetChangeRequestHandler(svc services.AssetChangeRequestService) AssetC
 // @Produce      json
 // @Param        id       path      string                        true  "ID актива (uuid)"
 // @Param        request  body      dto.CreateChangeRequestInput  true  "Данные заявки"
-// @Success      201      {object}  dto.AssetChangeRequestResponse
+// @Success      201      {object}  dto.AssetChangeRequestCreatedResponse
 // @Failure      400      {object}  map[string]string
 // @Failure      401      {object}  map[string]string
 // @Failure      404      {object}  map[string]string
@@ -60,7 +61,7 @@ func (h *assetChangeRequestHandler) CreateRequest(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, changeRequestToResponse(req))
+	c.JSON(http.StatusCreated, changeRequestToCreatedResponse(req))
 }
 
 // ListPending godoc
@@ -133,7 +134,7 @@ func (h *assetChangeRequestHandler) ApproveRequest(c *gin.Context) {
 }
 
 func changeRequestToResponse(r *models.AssetChangeRequest) dto.AssetChangeRequestResponse {
-	return dto.AssetChangeRequestResponse{
+	resp := dto.AssetChangeRequestResponse{
 		UUID:         r.UUID.String(),
 		AssetUUID:    r.AssetUUID.String(),
 		UserUUID:     r.UserUUID.String(),
@@ -144,4 +145,26 @@ func changeRequestToResponse(r *models.AssetChangeRequest) dto.AssetChangeReques
 		CreatedAt:    r.CreatedAt,
 		UpdatedAt:    r.UpdatedAt,
 	}
+	if r.ClientID != nil {
+		clientIDStr := r.ClientID.String()
+		resp.ClientID = &clientIDStr
+	}
+	if len(r.ProposedData) > 0 {
+		resp.ProposedData = json.RawMessage(r.ProposedData)
+	}
+	return resp
+}
+
+func changeRequestToCreatedResponse(r *models.AssetChangeRequest) dto.AssetChangeRequestCreatedResponse {
+	resp := dto.AssetChangeRequestCreatedResponse{
+		UUID:      r.UUID.String(),
+		Status:    string(r.Status),
+		CreatedAt: r.CreatedAt,
+		AssetUUID: r.AssetUUID.String(),
+	}
+	if r.ClientID != nil {
+		clientIDStr := r.ClientID.String()
+		resp.ClientID = &clientIDStr
+	}
+	return resp
 }

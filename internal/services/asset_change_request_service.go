@@ -50,7 +50,17 @@ func (s *assetChangeRequestService) CreateRequest(ctx context.Context, userUUID,
 		return nil, errors.New("asset already has a pending change request")
 	}
 
+	var clientUUID *uuid.UUID
+	if req.ClientID != nil {
+		parsed, err := uuid.Parse(*req.ClientID)
+		if err != nil {
+			return nil, errors.New("invalid client_id")
+		}
+		clientUUID = &parsed
+	}
+
 	newReq := &models.AssetChangeRequest{
+		ClientID:     clientUUID,
 		AssetUUID:    assetUUID,
 		UserUUID:     userUUID,
 		RequestType:  models.RequestType(req.Type),
