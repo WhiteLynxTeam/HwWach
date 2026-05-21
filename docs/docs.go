@@ -397,7 +397,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dto.AssetChangeRequestResponse"
+                            "$ref": "#/definitions/dto.AssetChangeRequestCreatedResponse"
                         }
                     },
                     "400": {
@@ -896,6 +896,30 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.AssetChangeRequestCreatedResponse": {
+            "type": "object",
+            "properties": {
+                "asset_uuid": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "client_id": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "pending"
+                },
+                "uuid": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                }
+            }
+        },
         "dto.AssetChangeRequestResponse": {
             "type": "object",
             "properties": {
@@ -906,8 +930,15 @@ const docTemplate = `{
                     "type": "string",
                     "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
                 },
+                "client_id": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
                 "created_at": {
                     "type": "string"
+                },
+                "proposed_data": {
+                    "type": "object"
                 },
                 "reason": {
                     "type": "string",
@@ -1051,6 +1082,10 @@ const docTemplate = `{
                 "type"
             ],
             "properties": {
+                "client_id": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
                 "proposed_data": {
                     "type": "object"
                 },

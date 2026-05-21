@@ -15,6 +15,7 @@ const (
 // AssetChangeRequest заявка на изменение актива
 type AssetChangeRequest struct {
 	UUID        uuid.UUID   `gorm:"type:uuid;primaryKey"`
+	ClientID    *uuid.UUID  `gorm:"type:uuid;uniqueIndex" json:"client_id,omitempty"`
 	AssetUUID   uuid.UUID   `gorm:"type:uuid;index"`
 	UserUUID    uuid.UUID   `gorm:"type:uuid"`
 	RequestType RequestType `gorm:"column:request_type;type:varchar(20)"` // update или delete

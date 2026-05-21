@@ -7,6 +7,7 @@ import (
 
 // CreateChangeRequestInput используется пользователем для создания заявки на изменение
 type CreateChangeRequestInput struct {
+	ClientID     *string         `json:"client_id,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
 	Type         string          `json:"type" binding:"required,oneof=update delete" example:"update"`
 	ProposedData json.RawMessage `json:"proposed_data,omitempty" swaggertype:"object"`
 	Reason       string          `json:"reason" binding:"required" example:"Неверно указан тип"`
@@ -18,15 +19,26 @@ type ApproveChangeRequestInput struct {
 	AdminComment string `json:"admin_comment,omitempty" example:"Изменения приняты"`
 }
 
-// AssetChangeRequestResponse используется для отдачи данных наружу
+// AssetChangeRequestResponse используется для отдачи полных данных наружу (администратору)
 type AssetChangeRequestResponse struct {
-	UUID         string    `json:"uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
-	AssetUUID    string    `json:"asset_uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
-	UserUUID     string    `json:"user_uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Type         string    `json:"type" example:"update"`
-	Reason       string    `json:"reason" example:"Неверно указан тип"`
-	AdminComment string    `json:"admin_comment,omitempty"`
-	Status       string    `json:"status" example:"pending"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	UUID         string          `json:"uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
+	ClientID     *string         `json:"client_id,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
+	AssetUUID    string          `json:"asset_uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
+	UserUUID     string          `json:"user_uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Type         string          `json:"type" example:"update"`
+	ProposedData json.RawMessage `json:"proposed_data,omitempty" swaggertype:"object"`
+	Reason       string          `json:"reason" example:"Неверно указан тип"`
+	AdminComment string          `json:"admin_comment,omitempty"`
+	Status       string          `json:"status" example:"pending"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+}
+
+// AssetChangeRequestCreatedResponse используется для ответа мобильному клиенту при успешном создании заявки
+type AssetChangeRequestCreatedResponse struct {
+	UUID      string    `json:"uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
+	ClientID  *string   `json:"client_id,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
+	Status    string    `json:"status" example:"pending"`
+	CreatedAt time.Time `json:"created_at"`
+	AssetUUID string    `json:"asset_uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
 }

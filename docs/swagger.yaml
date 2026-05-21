@@ -14,6 +14,23 @@ definitions:
     required:
     - status
     type: object
+  dto.AssetChangeRequestCreatedResponse:
+    properties:
+      asset_uuid:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+      client_id:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+      created_at:
+        type: string
+      status:
+        example: pending
+        type: string
+      uuid:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+    type: object
   dto.AssetChangeRequestResponse:
     properties:
       admin_comment:
@@ -21,8 +38,13 @@ definitions:
       asset_uuid:
         example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
         type: string
+      client_id:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
       created_at:
         type: string
+      proposed_data:
+        type: object
       reason:
         example: Неверно указан тип
         type: string
@@ -120,6 +142,9 @@ definitions:
     type: object
   dto.CreateChangeRequestInput:
     properties:
+      client_id:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
       proposed_data:
         type: object
       reason:
@@ -592,7 +617,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/dto.AssetChangeRequestResponse'
+            $ref: '#/definitions/dto.AssetChangeRequestCreatedResponse'
         "400":
           description: Bad Request
           schema:
