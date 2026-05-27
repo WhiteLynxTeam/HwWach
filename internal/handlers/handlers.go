@@ -8,6 +8,8 @@ type AssetHandler interface {
 	GetAsset(c *gin.Context)
 	UpdateAsset(c *gin.Context)
 	ListAssetPhotos(c *gin.Context)
+	CheckInventoryUnique(c *gin.Context)
+	ListUserAssetsPaginated(c *gin.Context)
 }
 
 type PhotoHandler interface {

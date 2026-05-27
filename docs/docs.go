@@ -30,7 +30,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Получение всех assets авторизованного пользователя (без вложений)",
+                "description": "Получение всех assets авторизованного пользователя с прикрепленными фотографиями",
                 "consumes": [
                     "application/json"
                 ],
@@ -208,6 +208,117 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/assets/check-inventory": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Проверка уникальности инвентарного номера по всей таблице assets",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assets"
+                ],
+                "summary": "Проверить уникальность инвентарного номера",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Инвентарный номер",
+                        "name": "num",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Результат проверки, например {\"unique\": true}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/assets/paginated": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Получение списка assets с поддержкой пагинации и массивом всех прикрепленных фотографий к каждому asset. Админы видят все assets, обычные пользователи только свои.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "assets"
+                ],
+                "summary": "Список assets с пагинацией и фотографиями",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Номер страницы",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Количество элементов на странице",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PaginatedAssetResponse"
                         }
                     },
                     "401": {
@@ -971,7 +1082,7 @@ const docTemplate = `{
                 "assets": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.AssetResponse"
+                        "$ref": "#/definitions/dto.AssetWithPhotosResponse"
                     }
                 },
                 "user_uuid": {
@@ -1006,6 +1117,60 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_uuid": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "uuid": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "verified_at": {
+                    "type": "string",
+                    "example": "2026-05-11T12:00:00Z"
+                }
+            }
+        },
+        "dto.AssetWithPhotosResponse": {
+            "type": "object",
+            "properties": {
+                "admin_comment": {
+                    "type": "string"
+                },
+                "asset_status": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "client_id": {
+                    "type": "string",
+                    "example": "0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "inventory_num": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "photos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.PhotoResponse"
+                    }
                 },
                 "updated_at": {
                     "type": "string"
@@ -1072,6 +1237,15 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Ноутбук служебный"
+                },
+                "photo_client_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx\"]"
+                    ]
                 }
             }
         },
@@ -1100,6 +1274,29 @@ const docTemplate = `{
                         "delete"
                     ],
                     "example": "update"
+                }
+            }
+        },
+        "dto.PaginatedAssetResponse": {
+            "type": "object",
+            "properties": {
+                "assets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AssetWithPhotosResponse"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "pages": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },

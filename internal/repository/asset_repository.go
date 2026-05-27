@@ -11,12 +11,14 @@ import (
 type AssetRepo interface {
 	Create(ctx context.Context, asset *models.Asset) error
 	GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Asset, error)
+	GetByInventoryNum(ctx context.Context, inventoryNum string) (*models.Asset, error)
 	GetAllByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Asset, error)
 	Update(ctx context.Context, asset *models.Asset) error
 	Delete(ctx context.Context, uuid uuid.UUID) error
 	UpdateStatus(ctx context.Context, uuid uuid.UUID, newStatus string) error
 	ListPhotos(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error)
 	ListRequests(ctx context.Context, assetUUID uuid.UUID) ([]*models.Request, error)
+	GetPaginated(ctx context.Context, userUUID *uuid.UUID, page, limit int) ([]*models.Asset, int64, error)
 }
 
 type assetRepo struct {
@@ -44,9 +46,17 @@ func (a assetRepo) GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Asset
 	return &asset, nil
 }
 
+func (a assetRepo) GetByInventoryNum(ctx context.Context, inventoryNum string) (*models.Asset, error) {
+	var asset models.Asset
+	if err := a.db.WithContext(ctx).First(&asset, "inventory_num = ?", inventoryNum).Error; err != nil {
+		return nil, err
+	}
+	return &asset, nil
+}
+
 func (a assetRepo) GetAllByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Asset, error) {
 	var assets []*models.Asset
-	if err := a.db.WithContext(ctx).Where("user_id = ?", userUUID).Find(&assets).Error; err != nil {
+	if err := a.db.WithContext(ctx).Preload("Photos").Where("user_id = ?", userUUID).Find(&assets).Error; err != nil {
 		return nil, err
 	}
 	return assets, nil
@@ -82,4 +92,25 @@ func (a assetRepo) ListRequests(ctx context.Context, assetUUID uuid.UUID) ([]*mo
 		return nil, err
 	}
 	return requests, nil
+}
+
+func (a assetRepo) GetPaginated(ctx context.Context, userUUID *uuid.UUID, page, limit int) ([]*models.Asset, int64, error) {
+	var total int64
+	var assets []*models.Asset
+
+	query := a.db.WithContext(ctx).Model(&models.Asset{})
+	if userUUID != nil {
+		query = query.Where("user_id = ?", *userUUID)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+	if err := query.Limit(limit).Offset(offset).Preload("Photos").Find(&assets).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return assets, total, nil
 }

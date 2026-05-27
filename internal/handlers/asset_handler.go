@@ -6,6 +6,7 @@ import (
 	"HwWach/internal/models"
 	"HwWach/internal/services"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -66,6 +67,39 @@ func (a assetHandler) CreateAsset(c *gin.Context) {
 		asset.ClientID = &clientUUID
 	}
 
+	var photoClientUUIDs []uuid.UUID
+	for _, idStr := range req.PhotoClientIDs {
+		parsedUUID, err := uuid.Parse(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid photo_client_id: " + err.Error()})
+			return
+		}
+		photoClientUUIDs = append(photoClientUUIDs, parsedUUID)
+	}
+
+	if len(photoClientUUIDs) > 0 {
+		photos, err := a.photoSvc.GetByClientIDs(c.Request.Context(), photoClientUUIDs)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch photos: " + err.Error()})
+			return
+		}
+
+		if len(photos) != len(photoClientUUIDs) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "some photo_client_ids were not found"})
+			return
+		}
+
+		var assetPhotos []models.Photo
+		for _, photo := range photos {
+			if photo.UserUUID != userUUID {
+				c.JSON(http.StatusForbidden, gin.H{"error": "photo does not belong to the user"})
+				return
+			}
+			assetPhotos = append(assetPhotos, *photo)
+		}
+		asset.Photos = assetPhotos
+	}
+
 	if req.AssetStatus == "" {
 		asset.AssetStatus = models.AssetStatusActive
 	}
@@ -80,7 +114,7 @@ func (a assetHandler) CreateAsset(c *gin.Context) {
 
 // ListUserAssets godoc
 // @Summary      Список assets пользователя
-// @Description  Получение всех assets авторизованного пользователя (без вложений)
+// @Description  Получение всех assets авторизованного пользователя с прикрепленными фотографиями
 // @Tags         assets
 // @Accept       json
 // @Produce      json
@@ -100,10 +134,29 @@ func (a assetHandler) ListUserAssets(c *gin.Context) {
 		return
 	}
 
-	// Конвертируем в DTO без вложений
-	assetDTOs := make([]dto.AssetResponse, 0, len(assets))
+	// Конвертируем в DTO с фотографиями
+	assetDTOs := make([]dto.AssetWithPhotosResponse, 0, len(assets))
 	for _, asset := range assets {
-		assetDTOs = append(assetDTOs, assetToResponse(asset))
+		baseResp := assetToResponse(asset)
+
+		photoResponses := make([]dto.PhotoResponse, 0, len(asset.Photos))
+		for _, photo := range asset.Photos {
+			photoResp := dto.PhotoResponse{
+				UUID:      photo.UUID.String(),
+				URL:       a.photoSvc.GetPublicURL(photo.URL),
+				CreatedAt: photo.CreatedAt.Format(time.RFC3339),
+			}
+			if photo.ClientID != nil {
+				clientIDStr := photo.ClientID.String()
+				photoResp.ClientID = &clientIDStr
+			}
+			photoResponses = append(photoResponses, photoResp)
+		}
+
+		assetDTOs = append(assetDTOs, dto.AssetWithPhotosResponse{
+			AssetResponse: baseResp,
+			Photos:        photoResponses,
+		})
 	}
 
 	c.JSON(http.StatusOK, dto.AssetListResponse{
@@ -229,6 +282,34 @@ func (a assetHandler) UpdateAsset(c *gin.Context) {
 	c.JSON(http.StatusOK, assetToResponse(updatedAsset))
 }
 
+// CheckInventoryUnique godoc
+// @Summary      Проверить уникальность инвентарного номера
+// @Description  Проверка уникальности инвентарного номера по всей таблице assets
+// @Tags         assets
+// @Accept       json
+// @Produce      json
+// @Param        num      query     string  true  "Инвентарный номер"
+// @Success      200      {object}  map[string]bool "Результат проверки, например {"unique": true}"
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Router       /assets/check-inventory [get]
+// @Security     BearerAuth
+func (a assetHandler) CheckInventoryUnique(c *gin.Context) {
+	inventoryNum := c.Query("num")
+	if inventoryNum == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "num query parameter is required"})
+		return
+	}
+
+	isUnique, err := a.assetSvc.IsInventoryNumUnique(c.Request.Context(), inventoryNum)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check uniqueness: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"unique": isUnique})
+}
+
 // assetToResponse конвертирует модель Asset в DTO AssetResponse
 func assetToResponse(asset *models.Asset) dto.AssetResponse {
 	resp := dto.AssetResponse{
@@ -255,4 +336,97 @@ func assetToResponse(asset *models.Asset) dto.AssetResponse {
 	}
 
 	return resp
+}
+
+// ListUserAssetsPaginated godoc
+// @Summary      Список assets с пагинацией и фотографиями
+// @Description  Получение списка assets с поддержкой пагинации и массивом всех прикрепленных фотографий к каждому asset. Админы видят все assets, обычные пользователи только свои.
+// @Tags         assets
+// @Accept       json
+// @Produce      json
+// @Param        page   query     int  false  "Номер страницы" default(1)
+// @Param        limit  query     int  false  "Количество элементов на странице" default(10)
+// @Success      200  {object}  dto.PaginatedAssetResponse
+// @Failure      401  {object}  map[string]string
+// @Router       /assets/paginated [get]
+// @Security     BearerAuth
+func (a assetHandler) ListUserAssetsPaginated(c *gin.Context) {
+	userUUID, ok := middleware.RequireUserUUID(c)
+	if !ok {
+		return
+	}
+
+	isAdmin := middleware.IsAdmin(c)
+
+	var filterUUID *uuid.UUID
+	if !isAdmin {
+		filterUUID = &userUUID
+	}
+
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	} else if limit > 100 {
+		limit = 100
+	}
+
+	assets, total, err := a.assetSvc.GetPaginated(c.Request.Context(), filterUUID, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	assetResponses := make([]dto.AssetWithPhotosResponse, 0, len(assets))
+	for _, asset := range assets {
+		// Конвертируем базовую инфо об asset
+		baseResp := assetToResponse(asset)
+
+		// Конвертируем фотографии с полными URL
+		photoResponses := make([]dto.PhotoResponse, 0, len(asset.Photos))
+		for _, photo := range asset.Photos {
+			photoResp := dto.PhotoResponse{
+				UUID:      photo.UUID.String(),
+				URL:       a.photoSvc.GetPublicURL(photo.URL),
+				CreatedAt: photo.CreatedAt.Format(time.RFC3339),
+			}
+			if photo.ClientID != nil {
+				clientIDStr := photo.ClientID.String()
+				photoResp.ClientID = &clientIDStr
+			}
+			photoResponses = append(photoResponses, photoResp)
+		}
+
+		var createdBy *string
+		if isAdmin {
+			createdByUserStr := asset.UserUUID.String()
+			createdBy = &createdByUserStr
+		}
+
+		assetResponses = append(assetResponses, dto.AssetWithPhotosResponse{
+			AssetResponse: baseResp,
+			CreatedBy:     createdBy,
+			Photos:        photoResponses,
+		})
+	}
+
+	pages := 0
+	if limit > 0 {
+		pages = int((total + int64(limit) - 1) / int64(limit))
+	}
+
+	c.JSON(http.StatusOK, dto.PaginatedAssetResponse{
+		Assets: assetResponses,
+		Total:  total,
+		Page:   page,
+		Limit:  limit,
+		Pages:  pages,
+	})
 }
