@@ -13,6 +13,7 @@ type PhotoRepo interface {
 	UpdateStatus(ctx context.Context, uuid uuid.UUID, status models.PhotoStatus) error
 	GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Photo, error)
 	GetByClientID(ctx context.Context, clientID uuid.UUID) (*models.Photo, error)
+	GetByClientIDs(ctx context.Context, clientIDs []uuid.UUID) ([]*models.Photo, error)
 	ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error)
 	ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error)
 	Detach(ctx context.Context, photoUUID uuid.UUID) error
@@ -51,6 +52,14 @@ func (p photoRepo) GetByClientID(ctx context.Context, clientID uuid.UUID) (*mode
 		return nil, err
 	}
 	return &photo, nil
+}
+
+func (p photoRepo) GetByClientIDs(ctx context.Context, clientIDs []uuid.UUID) ([]*models.Photo, error) {
+	var photos []*models.Photo
+	if err := p.db.WithContext(ctx).Select("uuid, user_id").Where("client_id IN ?", clientIDs).Find(&photos).Error; err != nil {
+		return nil, err
+	}
+	return photos, nil
 }
 
 func (p photoRepo) ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error) {

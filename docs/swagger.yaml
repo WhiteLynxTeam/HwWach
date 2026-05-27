@@ -67,7 +67,7 @@ definitions:
     properties:
       assets:
         items:
-          $ref: '#/definitions/dto.AssetResponse'
+          $ref: '#/definitions/dto.AssetWithPhotosResponse'
         type: array
       user_uuid:
         type: string
@@ -91,6 +91,43 @@ definitions:
         type: string
       name:
         type: string
+      updated_at:
+        type: string
+      user_uuid:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      uuid:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+      verified_at:
+        example: "2026-05-11T12:00:00Z"
+        type: string
+    type: object
+  dto.AssetWithPhotosResponse:
+    properties:
+      admin_comment:
+        type: string
+      asset_status:
+        type: string
+      category:
+        type: string
+      client_id:
+        example: 0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      description:
+        type: string
+      inventory_num:
+        type: string
+      name:
+        type: string
+      photos:
+        items:
+          $ref: '#/definitions/dto.PhotoResponse'
+        type: array
       updated_at:
         type: string
       user_uuid:
@@ -135,6 +172,12 @@ definitions:
       name:
         example: Ноутбук служебный
         type: string
+      photo_client_ids:
+        example:
+        - '["0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"]'
+        items:
+          type: string
+        type: array
     required:
     - category
     - inventory_num
@@ -159,6 +202,21 @@ definitions:
     required:
     - reason
     - type
+    type: object
+  dto.PaginatedAssetResponse:
+    properties:
+      assets:
+        items:
+          $ref: '#/definitions/dto.AssetWithPhotosResponse'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      pages:
+        type: integer
+      total:
+        type: integer
     type: object
   dto.PhotoListResponse:
     properties:
@@ -452,7 +510,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Получение всех assets авторизованного пользователя (без вложений)
+      description: Получение всех assets авторизованного пользователя с прикрепленными
+        фотографиями
       produces:
       - application/json
       responses:
@@ -748,6 +807,79 @@ paths:
       summary: Одобрить/отклонить заявку (Admin only)
       tags:
       - asset-change-requests
+  /assets/check-inventory:
+    get:
+      consumes:
+      - application/json
+      description: Проверка уникальности инвентарного номера по всей таблице assets
+      parameters:
+      - description: Инвентарный номер
+        in: query
+        name: num
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Результат проверки, например {"unique": true}'
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Проверить уникальность инвентарного номера
+      tags:
+      - assets
+  /assets/paginated:
+    get:
+      consumes:
+      - application/json
+      description: Получение списка assets с поддержкой пагинации и массивом всех
+        прикрепленных фотографий к каждому asset. Админы видят все assets, обычные
+        пользователи только свои.
+      parameters:
+      - default: 1
+        description: Номер страницы
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Количество элементов на странице
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedAssetResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список assets с пагинацией и фотографиями
+      tags:
+      - assets
   /photos:
     get:
       consumes:

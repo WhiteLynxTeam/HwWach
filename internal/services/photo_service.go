@@ -16,6 +16,7 @@ type PhotoService interface {
 	CompletePhotoUpload(ctx context.Context, photoUUID uuid.UUID) error
 	GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Photo, error)
 	GetByClientID(ctx context.Context, clientID uuid.UUID) (*models.Photo, error)
+	GetByClientIDs(ctx context.Context, clientIDs []uuid.UUID) ([]*models.Photo, error)
 	ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error)
 	ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error)
 	GetPresignedUploadURL(ctx context.Context, objectName, contentType string) (string, error)
@@ -33,9 +34,9 @@ func NewPhotoService(
 	assetRepo repository.AssetRepo,
 	minioSVC storage.Storage) PhotoService {
 	return &photoService{
-		photoRepo:  photoRepo,
+		photoRepo: photoRepo,
 		assetRepo: assetRepo,
-		minioSVC:   minioSVC,
+		minioSVC:  minioSVC,
 	}
 }
 
@@ -74,6 +75,13 @@ func (s *photoService) GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.P
 
 func (s *photoService) GetByClientID(ctx context.Context, clientID uuid.UUID) (*models.Photo, error) {
 	return s.photoRepo.GetByClientID(ctx, clientID)
+}
+
+func (s *photoService) GetByClientIDs(ctx context.Context, clientIDs []uuid.UUID) ([]*models.Photo, error) {
+	if len(clientIDs) == 0 {
+		return []*models.Photo{}, nil
+	}
+	return s.photoRepo.GetByClientIDs(ctx, clientIDs)
 }
 
 func (s *photoService) ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error) {

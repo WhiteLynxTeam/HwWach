@@ -2,12 +2,13 @@ package dto
 
 // CreateAssetRequest запрос на создание asset
 type CreateAssetRequest struct {
-	ClientID     *string `json:"client_id,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"` // UUID сгенерированный клиентом
-	InventoryNum string  `json:"inventory_num" binding:"required" example:"ИНВ-001"`
-	Name         string  `json:"name" binding:"required" example:"Ноутбук служебный"`
-	Category     string  `json:"category" binding:"required" example:"ноутбук"`
-	Description  string  `json:"description" example:"MacBook Pro 16"`
-	AssetStatus  string  `json:"asset_status" example:"active"`
+	ClientID       *string  `json:"client_id,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"` // UUID сгенерированный клиентом
+	InventoryNum   string   `json:"inventory_num" binding:"required" example:"ИНВ-001"`
+	Name           string   `json:"name" binding:"required" example:"Ноутбук служебный"`
+	Category       string   `json:"category" binding:"required" example:"ноутбук"`
+	Description    string   `json:"description" example:"MacBook Pro 16"`
+	AssetStatus    string   `json:"asset_status" example:"active"`
+	PhotoClientIDs []string `json:"photo_client_ids" example:"[\"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx\"]"`
 }
 
 // UpdateAssetRequest запрос на частичное обновление asset до проверки админом
@@ -37,6 +38,22 @@ type AssetResponse struct {
 
 // AssetListResponse ответ со списком assets
 type AssetListResponse struct {
-	UserUUID string          `json:"user_uuid"`
-	Assets   []AssetResponse `json:"assets"`
+	UserUUID string                    `json:"user_uuid"`
+	Assets   []AssetWithPhotosResponse `json:"assets"`
+}
+
+// AssetWithPhotosResponse ответ с информацией об asset и его фотографиями
+type AssetWithPhotosResponse struct {
+	AssetResponse
+	CreatedBy *string         `json:"created_by"`
+	Photos    []PhotoResponse `json:"photos"`
+}
+
+// PaginatedAssetResponse ответ со списком assets с пагинацией
+type PaginatedAssetResponse struct {
+	Assets []AssetWithPhotosResponse `json:"assets"`
+	Total  int64                     `json:"total"`
+	Page   int                       `json:"page"`
+	Limit  int                       `json:"limit"`
+	Pages  int                       `json:"pages"`
 }

@@ -27,6 +27,8 @@ func SetupRoutes(
 	{
 		assets.POST("", assetHandler.CreateAsset)
 		assets.GET("", assetHandler.ListUserAssets)
+		assets.GET("/paginated", assetHandler.ListUserAssetsPaginated)
+		assets.GET("/check-inventory", assetHandler.CheckInventoryUnique)
 		assets.GET("/:id", assetHandler.GetAsset)
 		assets.PUT("/:id", assetHandler.UpdateAsset)
 		assets.GET("/:id/photos", assetHandler.ListAssetPhotos)

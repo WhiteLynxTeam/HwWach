@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"HwWach/internal/models"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,6 +14,7 @@ import (
 // Константы для ключей контекста
 const (
 	ContextKeyUserUUID = "user_uuid"
+	ContextKeyUserRole = "user_role"
 )
 
 func JWTMiddleware(secret []byte) gin.HandlerFunc {
@@ -58,6 +60,10 @@ func JWTMiddleware(secret []byte) gin.HandlerFunc {
 		}
 
 		c.Set(ContextKeyUserUUID, userUUID.String())
+
+		role, _ := claims["role"].(string)
+		c.Set(ContextKeyUserRole, role)
+
 		c.Next()
 	}
 }
@@ -91,4 +97,26 @@ func RequireUserUUID(c *gin.Context) (uuid.UUID, bool) {
 		return uuid.Nil, false
 	}
 	return userUUID, true
+}
+
+// GetUserRole извлекает роль пользователя из контекста
+func GetUserRole(c *gin.Context) (models.UserRole, bool) {
+	role, exists := c.Get(ContextKeyUserRole)
+	if !exists {
+		return "", false
+	}
+	roleStr, ok := role.(string)
+	if !ok {
+		return "", false
+	}
+	return models.UserRole(roleStr), true
+}
+
+// IsAdmin проверяет, является ли пользователь администратором
+func IsAdmin(c *gin.Context) bool {
+	role, ok := GetUserRole(c)
+	if !ok {
+		return false
+	}
+	return models.UserRole(strings.ToUpper(string(role))) == models.RoleAdmin
 }
