@@ -27,7 +27,7 @@ import (
 type App struct {
 	cfg      *config.Config
 	db       *gorm.DB
-	minioSvc storage.Storage
+	storageSvc storage.Storage
 	router   *gin.Engine
 
 	assetH     handlers.AssetHandler
@@ -58,17 +58,29 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-	minioSvc, err := storage.NewMinioStorage(
-		cfg.MinioEndpoint,  // внутренний: minio:9000
-		cfg.MinioPublicURL, // внешний: http://149.154.65.57:9000
-		cfg.MinioAccessKey,
-		cfg.MinioSecretKey,
-		cfg.MinioUseSSL,
-		cfg.MinioBucket,
-	)
+	// Выбор хранилища на основе STORAGE_TYPE
+	var storageSvc storage.Storage
+	switch cfg.StorageType {
+	case "yandex":
+		storageSvc, err = storage.NewYandexDiskStorage(
+			cfg.YandexEndpoint,
+			cfg.YandexDiskToken,
+			cfg.YandexDiskBucket,
+		)
+	default: // "minio"
+		storageSvc, err = storage.NewMinioStorage(
+			cfg.MinioEndpoint,  // внутренний: minio:9000
+			cfg.MinioPublicURL, // внешний: http://149.154.65.57:9000
+			cfg.MinioAccessKey,
+			cfg.MinioSecretKey,
+			cfg.MinioUseSSL,
+			cfg.MinioBucket,
+		)
+	}
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("Storage type: %s\n", cfg.StorageType)
 
 	assetRepo := repository.NewAssetRepo(db)
 	photoRepo := repository.NewPhotoRepo(db)
@@ -76,7 +88,7 @@ func NewApp() (*App, error) {
 	changeReqRepo := repository.NewAssetChangeRequestRepo(db)
 
 	assetSvc := services.NewAssetService(assetRepo, photoRepo)
-	photoSvc := services.NewPhotoService(photoRepo, assetRepo, minioSvc)
+	photoSvc := services.NewPhotoService(photoRepo, assetRepo, storageSvc)
 	reqSvc := services.NewRequestService(requestRepo, assetRepo, photoRepo)
 	changeReqSvc := services.NewAssetChangeRequestService(changeReqRepo, assetRepo)
 
@@ -92,7 +104,7 @@ func NewApp() (*App, error) {
 	return &App{
 		cfg:        cfg,
 		db:         db,
-		minioSvc:   minioSvc,
+		storageSvc: storageSvc,
 		router:     router,
 		assetH:     assetH,
 		photoH:     photoH,
