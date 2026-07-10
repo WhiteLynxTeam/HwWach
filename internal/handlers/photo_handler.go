@@ -250,6 +250,41 @@ func (p photoHandler) ListUserPhotos(c *gin.Context) {
 	})
 }
 
+// DownloadPhoto godoc
+// @Summary      Получить изображение/скачать фотографию
+// @Description  Получение временной ссылки и перенаправление на скачивание фотографии
+// @Tags         photos
+// @Param        id  path      string  true  "ID фотографии (uuid)"
+// @Success      302
+// @Failure      400  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /photos/{id}/download [get]
+func (p photoHandler) DownloadPhoto(c *gin.Context) {
+	idParam := c.Param("id")
+	photoUUID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid photo id format"})
+		return
+	}
+
+	photo, err := p.photoSvc.GetByUUID(c.Request.Context(), photoUUID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "photo not found"})
+		return
+	}
+
+	// Запрашиваем временную прямую ссылку на скачивание
+	downloadURL, err := p.photoSvc.GetPresignedDownloadURL(c.Request.Context(), photo.URL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get download URL: " + err.Error()})
+		return
+	}
+
+	// Перенаправляем клиента по временной ссылке (HTTP 302 Found)
+	c.Redirect(http.StatusFound, downloadURL)
+}
+
 // DeletePhoto godoc
 // @Summary      Удалить фотографию
 // @Description  Удаление фотографии по идентификатору

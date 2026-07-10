@@ -16,6 +16,7 @@ type PhotoHandler interface {
 	UploadPhoto(c *gin.Context)
 	ConfirmUpload(c *gin.Context)
 	ListUserPhotos(c *gin.Context)
+	DownloadPhoto(c *gin.Context)
 	DeletePhoto(c *gin.Context)
 }
 

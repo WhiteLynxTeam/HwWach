@@ -811,6 +811,56 @@
                 }
             }
         },
+        "/photos/{id}/download": {
+            "get": {
+                "description": "Получение временной ссылки и перенаправление на скачивание фотографии",
+                "tags": [
+                    "photos"
+                ],
+                "summary": "Получить изображение/скачать фотографию",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID фотографии (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/requests": {
             "post": {
                 "security": [

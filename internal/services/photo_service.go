@@ -20,6 +20,7 @@ type PhotoService interface {
 	ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error)
 	ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error)
 	GetPresignedUploadURL(ctx context.Context, objectName, contentType string) (string, error)
+	GetPresignedDownloadURL(ctx context.Context, objectName string) (string, error)
 	GetPublicURL(objectName string) string
 }
 
@@ -95,6 +96,10 @@ func (s *photoService) ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID)
 func (s *photoService) GetPresignedUploadURL(ctx context.Context, objectName, contentType string) (string, error) {
 	// objectName теперь содержит чистый путь (user_id/photo_id_filename)
 	return s.minioSVC.PresignedPutURL(ctx, objectName, contentType, 24*time.Hour)
+}
+
+func (s *photoService) GetPresignedDownloadURL(ctx context.Context, objectName string) (string, error) {
+	return s.minioSVC.PresignedGetURL(ctx, objectName, 3*time.Hour)
 }
 
 func (s *photoService) GetPublicURL(objectName string) string {

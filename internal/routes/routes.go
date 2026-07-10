@@ -46,6 +46,8 @@ func SetupRoutes(
 		assets.PATCH("/change-requests/:id", changeRequestHandler.ApproveRequest)
 	}
 
+	r.GET("/photos/:id/download", photoHandler.DownloadPhoto)
+
 	photos := r.Group("/photos", jwtMiddleware)
 	{
 		photos.POST("/upload-url", photoHandler.UploadPhoto)

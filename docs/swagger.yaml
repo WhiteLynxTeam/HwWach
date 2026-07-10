@@ -940,6 +940,39 @@ paths:
       summary: Удалить фотографию
       tags:
       - photos
+  /photos/{id}/download:
+    get:
+      description: Получение временной ссылки и перенаправление на скачивание фотографии
+      parameters:
+      - description: ID фотографии (uuid)
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Получить изображение/скачать фотографию
+      tags:
+      - photos
   /photos/complete-upload:
     post:
       consumes:
