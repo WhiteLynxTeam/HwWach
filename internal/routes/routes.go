@@ -14,6 +14,7 @@ func SetupRoutes(
 	photoHandler handlers.PhotoHandler,
 	requestHandler handlers.RequestHandler,
 	changeRequestHandler handlers.AssetChangeRequestHandler,
+	categoryHandler handlers.CategoryHandler,
 	jwtMiddleware gin.HandlerFunc,
 ) {
 	r.GET("/health", func(c *gin.Context) {
@@ -44,6 +45,14 @@ func SetupRoutes(
 		assets.POST("/:id/change-requests", changeRequestHandler.CreateRequest)
 		assets.GET("/change-requests", changeRequestHandler.ListPending)
 		assets.PATCH("/change-requests/:id", changeRequestHandler.ApproveRequest)
+	}
+
+	categories := r.Group("/categories", jwtMiddleware)
+	{
+		categories.GET("/search", categoryHandler.Search)
+		categories.GET("/sync", categoryHandler.Sync)
+		categories.GET("/pending", categoryHandler.ListPending)
+		categories.PATCH("/:id/moderate", categoryHandler.Moderate)
 	}
 
 	r.GET("/photos/:id/download", photoHandler.DownloadPhoto)

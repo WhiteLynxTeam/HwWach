@@ -14,14 +14,16 @@ import (
 )
 
 type assetHandler struct {
-	assetSvc services.AssetService
-	photoSvc services.PhotoService
+	assetSvc    services.AssetService
+	photoSvc    services.PhotoService
+	categorySvc services.CategoryService
 }
 
-func NewAssetHandler(assetSvc services.AssetService, photoSvc services.PhotoService) AssetHandler {
+func NewAssetHandler(assetSvc services.AssetService, photoSvc services.PhotoService, categorySvc services.CategoryService) AssetHandler {
 	return &assetHandler{
-		assetSvc: assetSvc,
-		photoSvc: photoSvc,
+		assetSvc:    assetSvc,
+		photoSvc:    photoSvc,
+		categorySvc: categorySvc,
 	}
 }
 
@@ -49,10 +51,34 @@ func (a assetHandler) CreateAsset(c *gin.Context) {
 		return
 	}
 
+	var catUUID *uuid.UUID
+	if req.CategoryUUID != nil && *req.CategoryUUID != "" {
+		parsed, err := uuid.Parse(*req.CategoryUUID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category_uuid: " + err.Error()})
+			return
+		}
+		catUUID = &parsed
+	}
+
+	categoryText := req.CategoryText
+	if categoryText == nil || *categoryText == "" {
+		if req.Category != "" {
+			categoryText = &req.Category
+		}
+	}
+
+	resolvedCat, err := a.categorySvc.ResolveOrCreateCategory(c.Request.Context(), catUUID, categoryText, userUUID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to resolve category: " + err.Error()})
+		return
+	}
+
 	asset := &models.Asset{
 		InventoryNum: req.InventoryNum,
 		Name:         req.Name,
-		Category:     req.Category,
+		Category:     resolvedCat.Name,
+		CategoryUUID: &resolvedCat.UUID,
 		Description:  req.Description,
 		AssetStatus:  models.AssetStatus(req.AssetStatus),
 		UserUUID:     userUUID,
@@ -272,6 +298,36 @@ func (a assetHandler) UpdateAsset(c *gin.Context) {
 		return
 	}
 
+	if req.CategoryUUID != nil || req.CategoryText != nil || req.Category != nil {
+		var catUUID *uuid.UUID
+		if req.CategoryUUID != nil && *req.CategoryUUID != "" {
+			parsed, err := uuid.Parse(*req.CategoryUUID)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category_uuid: " + err.Error()})
+				return
+			}
+			catUUID = &parsed
+		}
+
+		categoryText := req.CategoryText
+		if categoryText == nil || *categoryText == "" {
+			if req.Category != nil && *req.Category != "" {
+				categoryText = req.Category
+			}
+		}
+
+		resolvedCat, err := a.categorySvc.ResolveOrCreateCategory(c.Request.Context(), catUUID, categoryText, userUUID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to resolve category: " + err.Error()})
+			return
+		}
+
+		catName := resolvedCat.Name
+		req.Category = &catName
+		catUUIDStr := resolvedCat.UUID.String()
+		req.CategoryUUID = &catUUIDStr
+	}
+
 	updatedAsset, err := a.assetSvc.UpdatePending(c.Request.Context(), userUUID, assetUUID, &req)
 	if err != nil {
 		// Упрощенная обработка ошибок (в реальности можно проверять типы ошибок)
@@ -323,6 +379,11 @@ func assetToResponse(asset *models.Asset) dto.AssetResponse {
 		AdminComment: asset.AdminComment,
 		CreatedAt:    asset.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:    asset.UpdatedAt.Format(time.RFC3339),
+	}
+
+	if asset.CategoryUUID != nil {
+		catUUIDStr := asset.CategoryUUID.String()
+		resp.CategoryUUID = &catUUIDStr
 	}
 
 	if asset.ClientID != nil {

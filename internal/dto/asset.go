@@ -5,7 +5,9 @@ type CreateAssetRequest struct {
 	ClientID       *string  `json:"client_id,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"` // UUID сгенерированный клиентом
 	InventoryNum   string   `json:"inventory_num" binding:"required" example:"ИНВ-001"`
 	Name           string   `json:"name" binding:"required" example:"Ноутбук служебный"`
-	Category       string   `json:"category" binding:"required" example:"ноутбук"`
+	Category       string   `json:"category,omitempty" example:"ноутбук"`
+	CategoryUUID   *string  `json:"category_uuid,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
+	CategoryText   *string  `json:"category_text,omitempty" example:"ноутбук"`
 	Description    string   `json:"description" example:"MacBook Pro 16"`
 	AssetStatus    string   `json:"asset_status" example:"active"`
 	PhotoClientIDs []string `json:"photo_client_ids" example:"[\"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx\"]"`
@@ -16,6 +18,8 @@ type UpdateAssetRequest struct {
 	InventoryNum *string `json:"inventory_num,omitempty" example:"ИНВ-002"`
 	Name         *string `json:"name,omitempty" example:"Ноутбук служебный"`
 	Category     *string `json:"category,omitempty" example:"ноутбук"`
+	CategoryUUID *string `json:"category_uuid,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
+	CategoryText *string `json:"category_text,omitempty" example:"ноутбук"`
 	Description  *string `json:"description,omitempty" example:"MacBook Pro 16 2023"`
 	AssetStatus  *string `json:"asset_status,omitempty" example:"inactive"`
 }
@@ -27,6 +31,7 @@ type AssetResponse struct {
 	InventoryNum string  `json:"inventory_num"`
 	Name         string  `json:"name"`
 	Category     string  `json:"category"`
+	CategoryUUID *string `json:"category_uuid,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
 	Description  string  `json:"description"`
 	AssetStatus  string  `json:"asset_status"`
 	UserUUID     string  `json:"user_uuid" example:"550e8400-e29b-41d4-a716-446655440000"`

@@ -33,7 +33,9 @@ type Asset struct {
 	ClientID     *uuid.UUID `gorm:"type:uuid;uniqueIndex" json:"client_id,omitempty" swaggertype:"string" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`         // UUID сгенерированный клиентом (для оптимистичного UI)
 	InventoryNum string     `gorm:"unique;not null" json:"inventory_num"`                                                                                         // Инвентарный номер
 	Name         string     `gorm:"not null" json:"name"`                                                                                                         // Название актива
-	Category     string     `gorm:"not null" json:"category"`                                                                                                     // Категория актива
+	Category     string     `gorm:"not null" json:"category"`                                                                                                     // Категория актива (текст)
+	CategoryUUID *uuid.UUID `gorm:"type:uuid;index;column:category_uuid" json:"category_uuid,omitempty" swaggertype:"string"`                                     // Внешний ключ на категорию
+	CategoryObj  *Category  `gorm:"foreignKey:CategoryUUID" json:"category_obj,omitempty"`                                                                        // Связанная модель категории
 	Description  string     `gorm:"type:text" json:"description"`                                                                                                 // Описание актива
 	UserUUID     uuid.UUID  `gorm:"type:uuid;not null;index;column:user_id" json:"user_uuid" swaggertype:"string" example:"550e8400-e29b-41d4-a716-446655440000"` // UUID владельца (из auth-сервиса)
 

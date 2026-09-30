@@ -19,6 +19,7 @@ type AssetRepo interface {
 	ListPhotos(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error)
 	ListRequests(ctx context.Context, assetUUID uuid.UUID) ([]*models.Request, error)
 	GetPaginated(ctx context.Context, userUUID *uuid.UUID, page, limit int) ([]*models.Asset, int64, error)
+	ReassignCategory(ctx context.Context, oldCategoryUUID, newCategoryUUID uuid.UUID, newCategoryName string) error
 }
 
 type assetRepo struct {
@@ -113,4 +114,13 @@ func (a assetRepo) GetPaginated(ctx context.Context, userUUID *uuid.UUID, page, 
 	}
 
 	return assets, total, nil
+}
+
+func (a assetRepo) ReassignCategory(ctx context.Context, oldCategoryUUID, newCategoryUUID uuid.UUID, newCategoryName string) error {
+	return a.db.WithContext(ctx).Model(&models.Asset{}).
+		Where("category_uuid = ?", oldCategoryUUID).
+		Updates(map[string]interface{}{
+			"category_uuid": newCategoryUUID,
+			"category":      newCategoryName,
+		}).Error
 }

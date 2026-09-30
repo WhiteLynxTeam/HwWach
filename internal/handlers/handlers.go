@@ -31,3 +31,10 @@ type AssetChangeRequestHandler interface {
 	ListPending(c *gin.Context)
 	ApproveRequest(c *gin.Context)
 }
+
+type CategoryHandler interface {
+	Search(c *gin.Context)
+	Sync(c *gin.Context)
+	ListPending(c *gin.Context)
+	Moderate(c *gin.Context)
+}

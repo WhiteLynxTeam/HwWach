@@ -34,6 +34,7 @@ type App struct {
 	photoH     handlers.PhotoHandler
 	reqH       handlers.RequestHandler
 	changeReqH handlers.AssetChangeRequestHandler
+	categoryH  handlers.CategoryHandler
 }
 
 func NewApp() (*App, error) {
@@ -86,20 +87,23 @@ func NewApp() (*App, error) {
 	photoRepo := repository.NewPhotoRepo(db)
 	requestRepo := repository.NewRequestRepo(db)
 	changeReqRepo := repository.NewAssetChangeRequestRepo(db)
+	categoryRepo := repository.NewCategoryRepo(db)
 
+	categorySvc := services.NewCategoryService(categoryRepo, assetRepo)
 	assetSvc := services.NewAssetService(assetRepo, photoRepo)
 	photoSvc := services.NewPhotoService(photoRepo, assetRepo, storageSvc)
 	reqSvc := services.NewRequestService(requestRepo, assetRepo, photoRepo)
 	changeReqSvc := services.NewAssetChangeRequestService(changeReqRepo, assetRepo)
 
-	assetH := handlers.NewAssetHandler(assetSvc, photoSvc)
+	categoryH := handlers.NewCategoryHandler(categorySvc)
+	assetH := handlers.NewAssetHandler(assetSvc, photoSvc, categorySvc)
 	photoH := handlers.NewPhotoHandler(photoSvc)
 	reqH := handlers.NewRequestHandler(reqSvc)
 	changeReqH := handlers.NewAssetChangeRequestHandler(changeReqSvc)
 
 	router := gin.Default()
 	jwtMW := middleware.JWTMiddleware([]byte(cfg.JWTSecret))
-	routes.SetupRoutes(router, assetH, photoH, reqH, changeReqH, jwtMW)
+	routes.SetupRoutes(router, assetH, photoH, reqH, changeReqH, categoryH, jwtMW)
 
 	return &App{
 		cfg:        cfg,
@@ -110,6 +114,7 @@ func NewApp() (*App, error) {
 		photoH:     photoH,
 		reqH:       reqH,
 		changeReqH: changeReqH,
+		categoryH:  categoryH,
 	}, nil
 }
 

@@ -10,9 +10,10 @@ import (
 )
 
 type DI struct {
-	AssetHandler   handlers.AssetHandler
-	PhotoHandler   handlers.PhotoHandler
-	RequestHandler handlers.RequestHandler
+	AssetHandler    handlers.AssetHandler
+	PhotoHandler    handlers.PhotoHandler
+	RequestHandler  handlers.RequestHandler
+	CategoryHandler handlers.CategoryHandler
 }
 
 func InitializeDI(
@@ -22,18 +23,22 @@ func InitializeDI(
 	assetRepo := repository.NewAssetRepo(db)
 	photoRepo := repository.NewPhotoRepo(db)
 	requestRepo := repository.NewRequestRepo(db)
+	categoryRepo := repository.NewCategoryRepo(db)
 
+	categorySvc := services.NewCategoryService(categoryRepo, assetRepo)
 	assetSvc := services.NewAssetService(assetRepo, photoRepo)
 	photoSvc := services.NewPhotoService(photoRepo, assetRepo, minioStorage)
 	reqSvc := services.NewRequestService(requestRepo, assetRepo, photoRepo)
 
-	assetH := handlers.NewAssetHandler(assetSvc, photoSvc)
+	categoryH := handlers.NewCategoryHandler(categorySvc)
+	assetH := handlers.NewAssetHandler(assetSvc, photoSvc, categorySvc)
 	photoH := handlers.NewPhotoHandler(photoSvc)
 	reqH := handlers.NewRequestHandler(reqSvc)
 
 	return &DI{
-		AssetHandler:   assetH,
-		PhotoHandler:   photoH,
-		RequestHandler: reqH,
+		AssetHandler:    assetH,
+		PhotoHandler:    photoH,
+		RequestHandler:  reqH,
+		CategoryHandler: categoryH,
 	}
 }

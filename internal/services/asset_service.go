@@ -88,6 +88,11 @@ func (s *assetService) UpdatePending(ctx context.Context, userUUID uuid.UUID, as
 	if req.Category != nil {
 		asset.Category = *req.Category
 	}
+	if req.CategoryUUID != nil && *req.CategoryUUID != "" {
+		if parsed, err := uuid.Parse(*req.CategoryUUID); err == nil {
+			asset.CategoryUUID = &parsed
+		}
+	}
 	if req.Description != nil {
 		asset.Description = *req.Description
 	}
