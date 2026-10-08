@@ -3,7 +3,7 @@ package dto
 // CreateAssetRequest запрос на создание asset
 type CreateAssetRequest struct {
 	ClientID       *string  `json:"client_id,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"` // UUID сгенерированный клиентом
-	InventoryNum   string   `json:"inventory_num" binding:"required" example:"ИНВ-001"`
+	InventoryNum   *string  `json:"inventory_num,omitempty" example:"ИНВ-001"`
 	Name           string   `json:"name" binding:"required" example:"Ноутбук служебный"`
 	Category       string   `json:"category,omitempty" example:"ноутбук"`
 	CategoryUUID   *string  `json:"category_uuid,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
@@ -28,7 +28,7 @@ type UpdateAssetRequest struct {
 type AssetResponse struct {
 	UUID         string  `json:"uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
 	ClientID     *string `json:"client_id,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
-	InventoryNum string  `json:"inventory_num"`
+	InventoryNum *string `json:"inventory_num,omitempty"`
 	Name         string  `json:"name"`
 	Category     string  `json:"category"`
 	CategoryUUID *string `json:"category_uuid,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`

@@ -7,6 +7,7 @@ import (
 	"HwWach/internal/services"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -74,8 +75,16 @@ func (a assetHandler) CreateAsset(c *gin.Context) {
 		return
 	}
 
+	var inventoryNum *string
+	if req.InventoryNum != nil {
+		trimmed := strings.TrimSpace(*req.InventoryNum)
+		if trimmed != "" {
+			inventoryNum = &trimmed
+		}
+	}
+
 	asset := &models.Asset{
-		InventoryNum: req.InventoryNum,
+		InventoryNum: inventoryNum,
 		Name:         req.Name,
 		Category:     resolvedCat.Name,
 		CategoryUUID: &resolvedCat.UUID,

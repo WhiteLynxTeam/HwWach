@@ -6,6 +6,7 @@ import (
 	"HwWach/internal/repository"
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -80,7 +81,12 @@ func (s *assetService) UpdatePending(ctx context.Context, userUUID uuid.UUID, as
 	}
 
 	if req.InventoryNum != nil {
-		asset.InventoryNum = *req.InventoryNum
+		trimmed := strings.TrimSpace(*req.InventoryNum)
+		if trimmed != "" {
+			asset.InventoryNum = &trimmed
+		} else {
+			asset.InventoryNum = nil
+		}
 	}
 	if req.Name != nil {
 		asset.Name = *req.Name
