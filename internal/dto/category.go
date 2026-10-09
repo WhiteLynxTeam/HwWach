@@ -32,3 +32,57 @@ type ModerateCategoryRequest struct {
 	MergedIntoUUID *string `json:"merged_into_uuid,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
 	AdminComment   *string `json:"admin_comment,omitempty"`
 }
+
+// AdminCategoryResponse ответ с информацией о категории для админ-панели (включая количество связанных ассетов)
+type AdminCategoryResponse struct {
+	UUID           string  `json:"uuid"`
+	Name           string  `json:"name"`
+	Level          int16   `json:"level"`
+	Status         string  `json:"status"`
+	UsageCount     int     `json:"usage_count"`
+	CreatedBy      *string `json:"created_by,omitempty"`
+	MergedIntoUUID *string `json:"merged_into_uuid,omitempty"`
+	AdminComment   string  `json:"admin_comment,omitempty"`
+	CreatedAt      string  `json:"created_at"`
+	UpdatedAt      string  `json:"updated_at"`
+	AssetsCount    int64   `json:"assets_count"`
+}
+
+// AdminCreateCategoryRequest запрос администратора на создание новой категории
+type AdminCreateCategoryRequest struct {
+	Name         string `json:"name" binding:"required"`
+	Level        int16  `json:"level" binding:"required"` // 1 (Global) или 2 (Local)
+	AdminComment string `json:"admin_comment,omitempty"`
+}
+
+// AdminUpdateCategoryRequest запрос администратора на редактирование категории
+type AdminUpdateCategoryRequest struct {
+	Name               string  `json:"name" binding:"required"`
+	Level              int16   `json:"level" binding:"required"`
+	Status             *string `json:"status,omitempty"`
+	AdminComment       string  `json:"admin_comment,omitempty"`
+	UpdateLinkedAssets bool    `json:"update_linked_assets"`
+}
+
+// AdminMergeCategoryRequest запрос администратора на объединение категорий
+type AdminMergeCategoryRequest struct {
+	TargetCategoryUUID string  `json:"target_category_uuid" binding:"required"`
+	AdminComment       *string `json:"admin_comment,omitempty"`
+	UpdateLinkedAssets bool    `json:"update_linked_assets"`
+}
+
+// CategoryAffectedResponse информация о связанных ассетах категории
+type CategoryAffectedResponse struct {
+	CategoryUUID string              `json:"category_uuid"`
+	CategoryName string              `json:"category_name"`
+	AssetsCount  int64               `json:"assets_count"`
+	SampleAssets []SimpleAssetSample `json:"sample_assets"`
+}
+
+// SimpleAssetSample краткая информация об ассете
+type SimpleAssetSample struct {
+	UUID         string  `json:"uuid"`
+	InventoryNum *string `json:"inventory_num,omitempty"`
+	Name         string  `json:"name"`
+}
+

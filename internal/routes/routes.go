@@ -49,9 +49,14 @@ func SetupRoutes(
 
 	categories := r.Group("/categories", jwtMiddleware)
 	{
+		categories.GET("", categoryHandler.ListAdmin)
+		categories.POST("", categoryHandler.AdminCreate)
 		categories.GET("/search", categoryHandler.Search)
 		categories.GET("/sync", categoryHandler.Sync)
 		categories.GET("/pending", categoryHandler.ListPending)
+		categories.GET("/:id/affected", categoryHandler.GetAffectedAssets)
+		categories.PUT("/:id", categoryHandler.AdminUpdate)
+		categories.POST("/:id/merge", categoryHandler.AdminMerge)
 		categories.PATCH("/:id/moderate", categoryHandler.Moderate)
 	}
 

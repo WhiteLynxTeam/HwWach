@@ -10,6 +10,11 @@ import (
 	"gorm.io/gorm"
 )
 
+type CategoryWithStats struct {
+	models.Category
+	AssetsCount int64 `gorm:"column:assets_count" json:"assets_count"`
+}
+
 type CategoryRepo interface {
 	Create(ctx context.Context, category *models.Category) error
 	GetByUUID(ctx context.Context, id uuid.UUID) (*models.Category, error)
@@ -18,7 +23,9 @@ type CategoryRepo interface {
 	Search(ctx context.Context, query string, userUUID uuid.UUID, limit int) ([]*models.Category, error)
 	Sync(ctx context.Context, userUUID uuid.UUID, since *time.Time) ([]*models.Category, []uuid.UUID, error)
 	ListPending(ctx context.Context) ([]*models.Category, error)
+	ListAdmin(ctx context.Context, level *int16, status *string, search string) ([]*CategoryWithStats, error)
 	Update(ctx context.Context, category *models.Category) error
+	Delete(ctx context.Context, id uuid.UUID) error
 	IncrementUsage(ctx context.Context, id uuid.UUID) error
 }
 
@@ -160,3 +167,35 @@ func (r *categoryRepo) IncrementUsage(ctx context.Context, id uuid.UUID) error {
 		Where("uuid = ?", id).
 		UpdateColumn("usage_count", gorm.Expr("usage_count + 1")).Error
 }
+
+func (r *categoryRepo) ListAdmin(ctx context.Context, level *int16, status *string, search string) ([]*CategoryWithStats, error) {
+	var results []*CategoryWithStats
+
+	query := r.db.WithContext(ctx).
+		Table("categories").
+		Select("categories.*, COALESCE(COUNT(assets.uuid), 0) as assets_count").
+		Joins("LEFT JOIN assets ON assets.category_uuid = categories.uuid AND assets.deleted_at IS NULL").
+		Where("categories.deleted_at IS NULL")
+
+	if level != nil {
+		query = query.Where("categories.level = ?", *level)
+	}
+	if status != nil && *status != "" {
+		query = query.Where("categories.status = ?", *status)
+	}
+	if search != "" {
+		clean := "%" + strings.ToLower(strings.TrimSpace(search)) + "%"
+		query = query.Where("categories.normalized_name ILIKE ?", clean)
+	}
+
+	query = query.Group("categories.uuid").
+		Order("categories.level ASC, categories.usage_count DESC, categories.name ASC")
+
+	err := query.Find(&results).Error
+	return results, err
+}
+
+func (r *categoryRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	return r.db.WithContext(ctx).Where("uuid = ?", id).Delete(&models.Category{}).Error
+}
+

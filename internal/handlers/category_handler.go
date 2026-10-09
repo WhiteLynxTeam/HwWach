@@ -6,6 +6,7 @@ import (
 	"HwWach/internal/models"
 	"HwWach/internal/services"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -191,3 +192,198 @@ func catToResponse(c *models.Category) dto.CategoryResponse {
 	}
 	return resp
 }
+
+// ListAdmin godoc
+// @Summary      Список всех категорий для админ-панели
+// @Description  Возвращает категории с фильтрами по уровню, статусу, поиску и счетчиком связанных ассетов
+// @Tags         categories
+// @Accept       json
+// @Produce      json
+// @Param        level   query     int     false  "Уровень (1, 2, 3)"
+// @Param        status  query     string  false  "Статус (approved, pending, merged, rejected)"
+// @Param        q       query     string  false  "Поисковая строка"
+// @Success      200     {array}   dto.AdminCategoryResponse
+// @Failure      401     {object}  map[string]string
+// @Failure      403     {object}  map[string]string
+// @Router       /categories [get]
+// @Security     BearerAuth
+func (h *categoryHandler) ListAdmin(c *gin.Context) {
+	if !middleware.IsAdmin(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+		return
+	}
+
+	var levelPtr *int16
+	if levelStr := c.Query("level"); levelStr != "" {
+		if lvl, err := strconv.Atoi(levelStr); err == nil {
+			lvl16 := int16(lvl)
+			levelPtr = &lvl16
+		}
+	}
+
+	var statusPtr *string
+	if statusStr := c.Query("status"); statusStr != "" {
+		statusPtr = &statusStr
+	}
+
+	search := c.Query("q")
+
+	responses, err := h.categorySvc.ListAdmin(c.Request.Context(), levelPtr, statusPtr, search)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list categories: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, responses)
+}
+
+// GetAffectedAssets godoc
+// @Summary      Получить статистику связанных ассетов для категории
+// @Description  Возвращает количество и примеры связанных ассетов перед объединением
+// @Tags         categories
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "UUID категории"
+// @Success      200  {object}  dto.CategoryAffectedResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
+// @Router       /categories/{id}/affected [get]
+// @Security     BearerAuth
+func (h *categoryHandler) GetAffectedAssets(c *gin.Context) {
+	if !middleware.IsAdmin(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+		return
+	}
+
+	categoryUUID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category uuid: " + err.Error()})
+		return
+	}
+
+	resp, err := h.categorySvc.GetAffectedAssets(c.Request.Context(), categoryUUID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// AdminCreate godoc
+// @Summary      Создать категорию (Admin)
+// @Description  Создает новую L1 или L2 категорию
+// @Tags         categories
+// @Accept       json
+// @Produce      json
+// @Param        request  body      dto.AdminCreateCategoryRequest  true  "Данные категории"
+// @Success      201      {object}  dto.AdminCategoryResponse
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
+// @Router       /categories [post]
+// @Security     BearerAuth
+func (h *categoryHandler) AdminCreate(c *gin.Context) {
+	if !middleware.IsAdmin(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+		return
+	}
+
+	var req dto.AdminCreateCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+		return
+	}
+
+	created, err := h.categorySvc.AdminCreate(c.Request.Context(), &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, created)
+}
+
+// AdminUpdate godoc
+// @Summary      Редактировать категорию (Admin)
+// @Description  Обновляет категорию, с возможностью синхронного обновления связанных ассетов
+// @Tags         categories
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string                          true  "UUID категории"
+// @Param        request  body      dto.AdminUpdateCategoryRequest  true  "Данные для обновления"
+// @Success      200      {object}  dto.AdminCategoryResponse
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
+// @Router       /categories/{id} [put]
+// @Security     BearerAuth
+func (h *categoryHandler) AdminUpdate(c *gin.Context) {
+	if !middleware.IsAdmin(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+		return
+	}
+
+	categoryUUID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category uuid: " + err.Error()})
+		return
+	}
+
+	var req dto.AdminUpdateCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+		return
+	}
+
+	updated, err := h.categorySvc.AdminUpdate(c.Request.Context(), categoryUUID, &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, updated)
+}
+
+// AdminMerge godoc
+// @Summary      Объединить категории (Admin)
+// @Description  Объединяет категорию с целевой категорией и обновляет связанные ассеты
+// @Tags         categories
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string                         true  "UUID исходной категории"
+// @Param        request  body      dto.AdminMergeCategoryRequest  true  "Данные слияния"
+// @Success      200      {object}  dto.AdminCategoryResponse
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      403      {object}  map[string]string
+// @Router       /categories/{id}/merge [post]
+// @Security     BearerAuth
+func (h *categoryHandler) AdminMerge(c *gin.Context) {
+	if !middleware.IsAdmin(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+		return
+	}
+
+	sourceUUID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid source category uuid: " + err.Error()})
+		return
+	}
+
+	var req dto.AdminMergeCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+		return
+	}
+
+	merged, err := h.categorySvc.AdminMerge(c.Request.Context(), sourceUUID, &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, merged)
+}
+

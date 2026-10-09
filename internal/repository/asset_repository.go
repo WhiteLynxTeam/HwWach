@@ -20,6 +20,9 @@ type AssetRepo interface {
 	ListRequests(ctx context.Context, assetUUID uuid.UUID) ([]*models.Request, error)
 	GetPaginated(ctx context.Context, userUUID *uuid.UUID, page, limit int) ([]*models.Asset, int64, error)
 	ReassignCategory(ctx context.Context, oldCategoryUUID, newCategoryUUID uuid.UUID, newCategoryName string) error
+	CountAssetsByCategory(ctx context.Context, categoryUUID uuid.UUID) (int64, error)
+	GetAssetsByCategory(ctx context.Context, categoryUUID uuid.UUID, limit int) ([]*models.Asset, error)
+	UpdateCategoryName(ctx context.Context, categoryUUID uuid.UUID, newName string) error
 }
 
 type assetRepo struct {
@@ -124,3 +127,25 @@ func (a assetRepo) ReassignCategory(ctx context.Context, oldCategoryUUID, newCat
 			"category":      newCategoryName,
 		}).Error
 }
+
+func (a assetRepo) CountAssetsByCategory(ctx context.Context, categoryUUID uuid.UUID) (int64, error) {
+	var count int64
+	err := a.db.WithContext(ctx).Model(&models.Asset{}).Where("category_uuid = ?", categoryUUID).Count(&count).Error
+	return count, err
+}
+
+func (a assetRepo) GetAssetsByCategory(ctx context.Context, categoryUUID uuid.UUID, limit int) ([]*models.Asset, error) {
+	var assets []*models.Asset
+	if limit <= 0 {
+		limit = 10
+	}
+	err := a.db.WithContext(ctx).Model(&models.Asset{}).Where("category_uuid = ?", categoryUUID).Limit(limit).Find(&assets).Error
+	return assets, err
+}
+
+func (a assetRepo) UpdateCategoryName(ctx context.Context, categoryUUID uuid.UUID, newName string) error {
+	return a.db.WithContext(ctx).Model(&models.Asset{}).
+		Where("category_uuid = ?", categoryUUID).
+		Update("category", newName).Error
+}
+

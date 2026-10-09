@@ -37,4 +37,9 @@ type CategoryHandler interface {
 	Sync(c *gin.Context)
 	ListPending(c *gin.Context)
 	Moderate(c *gin.Context)
+	ListAdmin(c *gin.Context)
+	GetAffectedAssets(c *gin.Context)
+	AdminCreate(c *gin.Context)
+	AdminUpdate(c *gin.Context)
+	AdminMerge(c *gin.Context)
 }
