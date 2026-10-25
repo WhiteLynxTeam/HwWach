@@ -1,6 +1,7 @@
 package services
 
 import (
+	"HwWach/internal/authz"
 	"HwWach/internal/dto"
 	"HwWach/internal/models"
 	"HwWach/internal/repository"
@@ -12,61 +13,58 @@ import (
 )
 
 type AssetChangeRequestService interface {
-	CreateRequest(ctx context.Context, userUUID, assetUUID uuid.UUID, req dto.CreateChangeRequestInput) (*models.AssetChangeRequest, error)
-	ApproveRequest(ctx context.Context, adminUUID, reqUUID uuid.UUID, req dto.ApproveChangeRequestInput) error
-	ListPending(ctx context.Context) ([]*models.AssetChangeRequest, error)
+	CreateRequest(ctx context.Context, p *authz.Principal, assetUUID uuid.UUID, req dto.CreateChangeRequestInput) (*models.AssetChangeRequest, error)
+	ApproveRequest(ctx context.Context, p *authz.Principal, reqUUID uuid.UUID, req dto.ApproveChangeRequestInput) error
+	ListPending(ctx context.Context, p *authz.Principal) ([]*models.AssetChangeRequest, error)
 }
 
 type assetChangeRequestService struct {
-	repo      repository.AssetChangeRequestRepo
-	assetRepo repository.AssetRepo
+	repo   repository.AssetChangeRequestRepo
+	assets AssetService
+	db     *assetService
 }
 
-func NewAssetChangeRequestService(repo repository.AssetChangeRequestRepo, assetRepo repository.AssetRepo) AssetChangeRequestService {
-	return &assetChangeRequestService{
-		repo:      repo,
-		assetRepo: assetRepo,
-	}
+func NewAssetChangeRequestService(repo repository.AssetChangeRequestRepo, assets AssetService) AssetChangeRequestService {
+	return &assetChangeRequestService{repo: repo, assets: assets, db: assets.(*assetService)}
 }
 
-func (s *assetChangeRequestService) CreateRequest(ctx context.Context, userUUID, assetUUID uuid.UUID, req dto.CreateChangeRequestInput) (*models.AssetChangeRequest, error) {
-	// 1. Проверяем, существует ли актив
-	asset, err := s.assetRepo.GetByUUID(ctx, assetUUID)
+// CreateRequest заявку на изменение или удаление подаёт тот, кто завёл карточку, или МОЛ актива
+func (s *assetChangeRequestService) CreateRequest(ctx context.Context, p *authz.Principal, assetUUID uuid.UUID, req dto.CreateChangeRequestInput) (*models.AssetChangeRequest, error) {
+	acc, err := loadAsset(ctx, s.db.db, p, assetUUID, false)
 	if err != nil {
-		return nil, errors.New("asset not found")
+		return nil, err
+	}
+	if acc.Asset.CreatedByPersonID != p.PersonID && !acc.IsMol {
+		return nil, Forbidden("you don't have permission to modify this asset")
 	}
 
-	// 2. Проверяем права пользователя
-	if asset.UserUUID != userUUID {
-		return nil, errors.New("you don't have permission to modify this asset")
-	}
-
-	// 3. Проверяем наличие уже существующей активной заявки
 	existingReq, err := s.repo.GetPendingByAssetID(ctx, assetUUID)
 	if err != nil {
 		return nil, err
 	}
 	if existingReq != nil {
-		return nil, errors.New("asset already has a pending change request")
+		return nil, Conflict("asset already has a pending change request")
 	}
 
 	var clientUUID *uuid.UUID
 	if req.ClientID != nil {
 		parsed, err := uuid.Parse(*req.ClientID)
 		if err != nil {
-			return nil, errors.New("invalid client_id")
+			return nil, BadRequest("invalid client_id")
 		}
 		clientUUID = &parsed
 	}
 
 	newReq := &models.AssetChangeRequest{
-		ClientID:     clientUUID,
-		AssetUUID:    assetUUID,
-		UserUUID:     userUUID,
-		RequestType:  models.RequestType(req.Type),
-		ProposedData: []byte(req.ProposedData),
-		Reason:       req.Reason,
-		Status:       models.ModerationPending,
+		OrganizationID: p.OrgID,
+		ClientID:       clientUUID,
+		AssetUUID:      assetUUID,
+		AccountUUID:    p.AccountID,
+		PersonUUID:     p.PersonID,
+		RequestType:    models.RequestType(req.Type),
+		ProposedData:   []byte(req.ProposedData),
+		Reason:         req.Reason,
+		Status:         models.ModerationPending,
 	}
 
 	if err := s.repo.Create(ctx, newReq); err != nil {
@@ -76,54 +74,49 @@ func (s *assetChangeRequestService) CreateRequest(ctx context.Context, userUUID,
 	return newReq, nil
 }
 
-func (s *assetChangeRequestService) ApproveRequest(ctx context.Context, adminUUID, reqUUID uuid.UUID, req dto.ApproveChangeRequestInput) error {
-	changeReq, err := s.repo.GetByUUID(ctx, reqUUID)
+// ApproveRequest право change_requests.review (раньше проверки не было — любой вошедший одобрял чужие заявки)
+func (s *assetChangeRequestService) ApproveRequest(ctx context.Context, p *authz.Principal, reqUUID uuid.UUID, req dto.ApproveChangeRequestInput) error {
+	if !p.Has(authz.PermChangeRequestsReview) {
+		return errNoRights
+	}
+	changeReq, err := s.repo.GetByUUID(ctx, p.OrgID, reqUUID)
 	if err != nil {
-		return errors.New("request not found")
+		return NotFound("request not found")
 	}
 
 	if changeReq.Status != models.ModerationPending {
-		return errors.New("request is not in pending status")
+		return Conflict("request is not in pending status")
 	}
 
 	changeReq.Status = models.ModerationStatus(req.Status)
 	changeReq.AdminComment = req.AdminComment
+	changeReq.ProcessedByAccountID = &p.AccountID
+	changeReq.ProcessedByPersonID = &p.PersonID
 
 	if changeReq.Status == models.ModerationApproved {
-		// Применяем изменения к активу
-		asset, err := s.assetRepo.GetByUUID(ctx, changeReq.AssetUUID)
-		if err != nil {
-			return errors.New("asset not found")
-		}
-
-		if changeReq.RequestType == models.RequestTypeUpdate {
-			// Обновляем актив полями из заявки
+		switch changeReq.RequestType {
+		case models.RequestTypeUpdate:
 			var updateData dto.UpdateAssetRequest
 			if len(changeReq.ProposedData) > 0 {
 				if err := json.Unmarshal(changeReq.ProposedData, &updateData); err != nil {
-					return errors.New("failed to parse proposed data: " + err.Error())
-				}
-
-				if updateData.Name != nil {
-					asset.Name = *updateData.Name
-				}
-				if updateData.Category != nil {
-					asset.Category = *updateData.Category
-				}
-				if updateData.Description != nil {
-					asset.Description = *updateData.Description
-				}
-				if updateData.AssetStatus != nil {
-					asset.AssetStatus = models.AssetStatus(*updateData.AssetStatus)
+					return BadRequest("failed to parse proposed data: " + err.Error())
 				}
 			}
-
-			if err := s.assetRepo.Update(ctx, asset); err != nil {
+			// применяем от имени проверяющего: у него assets.manage или review
+			reviewer := *p
+			reviewer.Perms = map[string]bool{authz.PermAssetsManage: true, authz.PermAssetsViewAll: true}
+			if _, err := s.assets.Update(ctx, &reviewer, changeReq.AssetUUID, &updateData); err != nil {
+				var appErr *AppError
+				if errors.As(err, &appErr) {
+					return err
+				}
 				return errors.New("failed to update asset")
 			}
-		} else if changeReq.RequestType == models.RequestTypeDelete {
-			if err := s.assetRepo.Delete(ctx, changeReq.AssetUUID); err != nil {
-				return errors.New("failed to delete asset")
+		case models.RequestTypeDelete:
+			reviewer := *p
+			reviewer.Perms = map[string]bool{authz.PermAssetsManage: true, authz.PermAssetsViewAll: true}
+			if err := s.assets.Delete(ctx, &reviewer, changeReq.AssetUUID); err != nil {
+				return err
 			}
 		}
 	}
@@ -131,6 +124,9 @@ func (s *assetChangeRequestService) ApproveRequest(ctx context.Context, adminUUI
 	return s.repo.UpdateStatus(ctx, changeReq)
 }
 
-func (s *assetChangeRequestService) ListPending(ctx context.Context) ([]*models.AssetChangeRequest, error) {
-	return s.repo.ListPending(ctx)
+func (s *assetChangeRequestService) ListPending(ctx context.Context, p *authz.Principal) ([]*models.AssetChangeRequest, error) {
+	if !p.Has(authz.PermChangeRequestsReview) {
+		return nil, errNoRights
+	}
+	return s.repo.ListPending(ctx, p.OrgID)
 }

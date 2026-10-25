@@ -15,15 +15,18 @@ type CategoryWithStats struct {
 	AssetsCount int64 `gorm:"column:assets_count" json:"assets_count"`
 }
 
+// Видимость категорий: общие L1, одобренные L2 своей организации и свои L3 (не отклонённые)
+const visibleCategories = "(level = 1 AND status = 'approved') OR (level = 2 AND organization_id = ? AND status = 'approved') OR (level = 3 AND organization_id = ? AND created_by = ? AND status != 'rejected')"
+
 type CategoryRepo interface {
 	Create(ctx context.Context, category *models.Category) error
 	GetByUUID(ctx context.Context, id uuid.UUID) (*models.Category, error)
-	GetByNormalizedName(ctx context.Context, normalizedName string, level int16, userUUID *uuid.UUID) (*models.Category, error)
-	FindExactMatch(ctx context.Context, normalizedName string, userUUID uuid.UUID) (*models.Category, error)
-	Search(ctx context.Context, query string, userUUID uuid.UUID, limit int) ([]*models.Category, error)
-	Sync(ctx context.Context, userUUID uuid.UUID, since *time.Time) ([]*models.Category, []uuid.UUID, error)
-	ListPending(ctx context.Context) ([]*models.Category, error)
-	ListAdmin(ctx context.Context, level *int16, status *string, search string) ([]*CategoryWithStats, error)
+	GetByNormalizedName(ctx context.Context, org uuid.UUID, normalizedName string, level int16, userUUID *uuid.UUID) (*models.Category, error)
+	FindExactMatch(ctx context.Context, org uuid.UUID, normalizedName string, userUUID uuid.UUID) (*models.Category, error)
+	Search(ctx context.Context, org uuid.UUID, query string, userUUID uuid.UUID, limit int) ([]*models.Category, error)
+	Sync(ctx context.Context, org uuid.UUID, userUUID uuid.UUID, since *time.Time) ([]*models.Category, []uuid.UUID, error)
+	ListPending(ctx context.Context, org uuid.UUID) ([]*models.Category, error)
+	ListAdmin(ctx context.Context, org uuid.UUID, level *int16, status *string, search string) ([]*CategoryWithStats, error)
 	Update(ctx context.Context, category *models.Category) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	IncrementUsage(ctx context.Context, id uuid.UUID) error
@@ -49,9 +52,12 @@ func (r *categoryRepo) GetByUUID(ctx context.Context, id uuid.UUID) (*models.Cat
 	return &category, nil
 }
 
-func (r *categoryRepo) GetByNormalizedName(ctx context.Context, normalizedName string, level int16, userUUID *uuid.UUID) (*models.Category, error) {
+func (r *categoryRepo) GetByNormalizedName(ctx context.Context, org uuid.UUID, normalizedName string, level int16, userUUID *uuid.UUID) (*models.Category, error) {
 	var category models.Category
 	query := r.db.WithContext(ctx).Where("normalized_name = ? AND level = ?", normalizedName, level)
+	if level != 1 {
+		query = query.Where("organization_id = ?", org)
+	}
 	if level == 3 && userUUID != nil {
 		query = query.Where("created_by = ?", *userUUID)
 	}
@@ -61,12 +67,12 @@ func (r *categoryRepo) GetByNormalizedName(ctx context.Context, normalizedName s
 	return &category, nil
 }
 
-// FindExactMatch ищет точное совпадение по имени среди L1, L2 и собственных L3
-func (r *categoryRepo) FindExactMatch(ctx context.Context, normalizedName string, userUUID uuid.UUID) (*models.Category, error) {
+// FindExactMatch ищет точное совпадение по имени среди L1, L2 организации и собственных L3
+func (r *categoryRepo) FindExactMatch(ctx context.Context, org uuid.UUID, normalizedName string, userUUID uuid.UUID) (*models.Category, error) {
 	var category models.Category
 	err := r.db.WithContext(ctx).
 		Where("normalized_name = ? AND deleted_at IS NULL", normalizedName).
-		Where("(level IN (1, 2) AND status = 'approved') OR (level = 3 AND created_by = ? AND status != 'rejected')", userUUID).
+		Where(visibleCategories, org, org, userUUID).
 		Order("level ASC").
 		First(&category).Error
 	if err != nil {
@@ -76,7 +82,7 @@ func (r *categoryRepo) FindExactMatch(ctx context.Context, normalizedName string
 }
 
 // Search выполняет нечёткий (pg_trgm) и подстрочный поиск категорий
-func (r *categoryRepo) Search(ctx context.Context, query string, userUUID uuid.UUID, limit int) ([]*models.Category, error) {
+func (r *categoryRepo) Search(ctx context.Context, org uuid.UUID, query string, userUUID uuid.UUID, limit int) ([]*models.Category, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -86,7 +92,7 @@ func (r *categoryRepo) Search(ctx context.Context, query string, userUUID uuid.U
 
 	dbQuery := r.db.WithContext(ctx).Model(&models.Category{}).
 		Where("deleted_at IS NULL").
-		Where("(level IN (1, 2) AND status = 'approved') OR (level = 3 AND created_by = ? AND status != 'rejected')", userUUID)
+		Where(visibleCategories, org, org, userUUID)
 
 	if normQuery == "" {
 		// При пустом запросе отдаём популярные L1 и L2 категории
@@ -111,7 +117,7 @@ func (r *categoryRepo) Search(ctx context.Context, query string, userUUID uuid.U
 }
 
 // Sync возвращает список обновленных категорий и ID удаленных/объединенных с момента since
-func (r *categoryRepo) Sync(ctx context.Context, userUUID uuid.UUID, since *time.Time) ([]*models.Category, []uuid.UUID, error) {
+func (r *categoryRepo) Sync(ctx context.Context, org uuid.UUID, userUUID uuid.UUID, since *time.Time) ([]*models.Category, []uuid.UUID, error) {
 	var categories []*models.Category
 	var deletedIDs []uuid.UUID
 
@@ -119,7 +125,7 @@ func (r *categoryRepo) Sync(ctx context.Context, userUUID uuid.UUID, since *time
 		// Полная синхронизация: все активные L1/L2 и одобренные/pending L3 пользователя
 		err := r.db.WithContext(ctx).
 			Where("deleted_at IS NULL").
-			Where("(level IN (1, 2) AND status = 'approved') OR (level = 3 AND created_by = ? AND status != 'rejected')", userUUID).
+			Where(visibleCategories, org, org, userUUID).
 			Order("level ASC, name ASC").
 			Find(&categories).Error
 		return categories, deletedIDs, err
@@ -129,7 +135,7 @@ func (r *categoryRepo) Sync(ctx context.Context, userUUID uuid.UUID, since *time
 	var allUpdated []*models.Category
 	err := r.db.WithContext(ctx).Unscoped().
 		Where("updated_at > ?", since).
-		Where("(level IN (1, 2)) OR (level = 3 AND created_by = ?)", userUUID).
+		Where("(level = 1) OR (level = 2 AND organization_id = ?) OR (level = 3 AND organization_id = ? AND created_by = ?)", org, org, userUUID).
 		Find(&allUpdated).Error
 	if err != nil {
 		return nil, nil, err
@@ -146,11 +152,11 @@ func (r *categoryRepo) Sync(ctx context.Context, userUUID uuid.UUID, since *time
 	return categories, deletedIDs, nil
 }
 
-// ListPending возвращает список L3 категорий на модерацию (для админа)
-func (r *categoryRepo) ListPending(ctx context.Context) ([]*models.Category, error) {
+// ListPending возвращает список L3 категорий организации на модерацию
+func (r *categoryRepo) ListPending(ctx context.Context, org uuid.UUID) ([]*models.Category, error) {
 	var categories []*models.Category
 	err := r.db.WithContext(ctx).
-		Where("level = 3 AND status = ?", models.CategoryStatusPending).
+		Where("level = 3 AND organization_id = ? AND status = ?", org, models.CategoryStatusPending).
 		Where("deleted_at IS NULL").
 		Order("created_at DESC").
 		Find(&categories).Error
@@ -168,14 +174,16 @@ func (r *categoryRepo) IncrementUsage(ctx context.Context, id uuid.UUID) error {
 		UpdateColumn("usage_count", gorm.Expr("usage_count + 1")).Error
 }
 
-func (r *categoryRepo) ListAdmin(ctx context.Context, level *int16, status *string, search string) ([]*CategoryWithStats, error) {
+// ListAdmin категории для админ-панели: общие L1 и все категории своей организации
+func (r *categoryRepo) ListAdmin(ctx context.Context, org uuid.UUID, level *int16, status *string, search string) ([]*CategoryWithStats, error) {
 	var results []*CategoryWithStats
 
 	query := r.db.WithContext(ctx).
 		Table("categories").
 		Select("categories.*, COALESCE(COUNT(assets.uuid), 0) as assets_count").
-		Joins("LEFT JOIN assets ON assets.category_uuid = categories.uuid AND assets.deleted_at IS NULL").
-		Where("categories.deleted_at IS NULL")
+		Joins("LEFT JOIN assets ON assets.category_uuid = categories.uuid AND assets.deleted_at IS NULL AND assets.organization_id = ?", org).
+		Where("categories.deleted_at IS NULL").
+		Where("categories.level = 1 OR categories.organization_id = ?", org)
 
 	if level != nil {
 		query = query.Where("categories.level = ?", *level)
@@ -198,4 +206,3 @@ func (r *categoryRepo) ListAdmin(ctx context.Context, level *int16, status *stri
 func (r *categoryRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return r.db.WithContext(ctx).Where("uuid = ?", id).Delete(&models.Category{}).Error
 }
-

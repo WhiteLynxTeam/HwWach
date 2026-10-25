@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"HwWach/internal/models"
+	"HwWach/internal/authz"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,11 +11,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// Константы для ключей контекста
-const (
-	ContextKeyUserUUID = "user_uuid"
-	ContextKeyUserRole = "user_role"
-)
+const contextKeyPrincipal = "principal"
+
+// Principal — authz.Principal: данные вошедшего из access-токена ts
+type Principal = authz.Principal
 
 func JWTMiddleware(secret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -40,83 +39,79 @@ func JWTMiddleware(secret []byte) gin.HandlerFunc {
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			c.Error(fmt.Errorf("JWT claims type assertion failed"))
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Malformed token claims"})
 			return
 		}
 
-		sub, ok := claims["sub"].(string)
-		if !ok {
-			c.Error(fmt.Errorf("JWT subject claim missing or invalid: %v", claims["sub"]))
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid subject claim"})
+		// refresh-токен как access не подходит (5)
+		if typ, _ := claims["typ"].(string); typ != "access" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token type"})
 			return
 		}
 
-		userUUID, err := uuid.Parse(sub)
-		if err != nil {
-			c.Error(fmt.Errorf("UUID parse error: %w", err))
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid UUID format"})
+		p := &Principal{Perms: map[string]bool{}}
+		var perr error
+		if p.AccountID, perr = claimUUID(claims, "sub"); perr == nil {
+			if p.OrgID, perr = claimUUID(claims, "org"); perr == nil {
+				p.PersonID, perr = claimUUID(claims, "person")
+			}
+		}
+		if perr != nil {
+			c.Error(perr)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 			return
 		}
+		p.Login, _ = claims["login"].(string)
+		p.Role, _ = claims["role"].(string)
+		p.IsMol, _ = claims["mol"].(bool)
+		if perms, ok := claims["perms"].([]interface{}); ok {
+			for _, v := range perms {
+				if s, ok := v.(string); ok {
+					p.Perms[s] = true
+				}
+			}
+		}
 
-		c.Set(ContextKeyUserUUID, userUUID.String())
-
-		role, _ := claims["role"].(string)
-		c.Set(ContextKeyUserRole, role)
-
+		p.IP = c.ClientIP()
+		c.Set(contextKeyPrincipal, p)
 		c.Next()
 	}
 }
 
-// GetUserUUID извлекает UUID пользователя из контекста
-// Возвращает пустой uuid.UUID и false если пользователь не авторизован
-func GetUserUUID(c *gin.Context) (uuid.UUID, bool) {
-	userUUID, exists := c.Get(ContextKeyUserUUID)
-	if !exists {
-		return uuid.Nil, false
-	}
-
-	u, ok := userUUID.(string)
+func claimUUID(claims jwt.MapClaims, key string) (uuid.UUID, error) {
+	s, ok := claims[key].(string)
 	if !ok {
-		return uuid.Nil, false
+		return uuid.Nil, fmt.Errorf("claim %s missing", key)
 	}
-
-	parsed, err := uuid.Parse(u)
-	if err != nil {
-		return uuid.Nil, false
-	}
-
-	return parsed, true
+	return uuid.Parse(s)
 }
 
-// RequireUserUUID извлекает UUID пользователя или прерывает запрос с 401
-func RequireUserUUID(c *gin.Context) (uuid.UUID, bool) {
-	userUUID, ok := GetUserUUID(c)
+// CurrentPrincipal данные вошедшего или прерывает запрос с 401
+func CurrentPrincipal(c *gin.Context) (*Principal, bool) {
+	v, ok := c.Get(contextKeyPrincipal)
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return uuid.Nil, false
+		return nil, false
 	}
-	return userUUID, true
+	p, ok := v.(*Principal)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return nil, false
+	}
+	return p, true
 }
 
-// GetUserRole извлекает роль пользователя из контекста
-func GetUserRole(c *gin.Context) (models.UserRole, bool) {
-	role, exists := c.Get(ContextKeyUserRole)
-	if !exists {
-		return "", false
-	}
-	roleStr, ok := role.(string)
+// RequirePerm вошедший с любым из прав или 403
+func RequirePerm(c *gin.Context, perms ...string) (*Principal, bool) {
+	p, ok := CurrentPrincipal(c)
 	if !ok {
-		return "", false
+		return nil, false
 	}
-	return models.UserRole(roleStr), true
-}
-
-// IsAdmin проверяет, является ли пользователь администратором
-func IsAdmin(c *gin.Context) bool {
-	role, ok := GetUserRole(c)
-	if !ok {
-		return false
+	for _, perm := range perms {
+		if p.Has(perm) {
+			return p, true
+		}
 	}
-	return models.UserRole(strings.ToUpper(string(role))) == models.RoleAdmin
+	c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Недостаточно прав"})
+	return nil, false
 }

@@ -40,8 +40,9 @@ type AdminCategoryResponse struct {
 	Level          int16   `json:"level"`
 	Status         string  `json:"status"`
 	UsageCount     int     `json:"usage_count"`
-	CreatedBy      *string `json:"created_by,omitempty"`
-	MergedIntoUUID *string `json:"merged_into_uuid,omitempty"`
+	CreatedBy         *string `json:"created_by,omitempty"`
+	CreatedByPersonID *string `json:"created_by_person_id,omitempty"`
+	MergedIntoUUID    *string `json:"merged_into_uuid,omitempty"`
 	AdminComment   string  `json:"admin_comment,omitempty"`
 	CreatedAt      string  `json:"created_at"`
 	UpdatedAt      string  `json:"updated_at"`

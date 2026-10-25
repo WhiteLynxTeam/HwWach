@@ -13,11 +13,8 @@ type PhotoRepo interface {
 	UpdateStatus(ctx context.Context, uuid uuid.UUID, status models.PhotoStatus) error
 	GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Photo, error)
 	GetByClientID(ctx context.Context, clientID uuid.UUID) (*models.Photo, error)
-	GetByClientIDs(ctx context.Context, clientIDs []uuid.UUID) ([]*models.Photo, error)
-	ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error)
-	ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error)
-	Detach(ctx context.Context, photoUUID uuid.UUID) error
-	Delete(ctx context.Context, uuid uuid.UUID) error
+	ListByAccount(ctx context.Context, org, accountID uuid.UUID) ([]*models.Photo, error)
+	CountByOrg(ctx context.Context, org uuid.UUID) (int64, error)
 }
 
 type photoRepo struct {
@@ -54,33 +51,16 @@ func (p photoRepo) GetByClientID(ctx context.Context, clientID uuid.UUID) (*mode
 	return &photo, nil
 }
 
-func (p photoRepo) GetByClientIDs(ctx context.Context, clientIDs []uuid.UUID) ([]*models.Photo, error) {
+func (p photoRepo) ListByAccount(ctx context.Context, org, accountID uuid.UUID) ([]*models.Photo, error) {
 	var photos []*models.Photo
-	if err := p.db.WithContext(ctx).Select("uuid, user_id").Where("client_id IN ?", clientIDs).Find(&photos).Error; err != nil {
+	if err := p.db.WithContext(ctx).Where("organization_id = ? AND account_id = ?", org, accountID).Find(&photos).Error; err != nil {
 		return nil, err
 	}
 	return photos, nil
 }
 
-func (p photoRepo) ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error) {
-	var photos []*models.Photo
-	if err := p.db.WithContext(ctx).Where("user_id = ?", userUUID).Find(&photos).Error; err != nil {
-		return nil, err
-	}
-	return photos, nil
-}
-
-func (p photoRepo) ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (p photoRepo) Detach(ctx context.Context, photoUUID uuid.UUID) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (p photoRepo) Delete(ctx context.Context, uuid uuid.UUID) error {
-	//TODO implement me
-	panic("implement me")
+func (p photoRepo) CountByOrg(ctx context.Context, org uuid.UUID) (int64, error) {
+	var n int64
+	err := p.db.WithContext(ctx).Model(&models.Photo{}).Where("organization_id = ?", org).Count(&n).Error
+	return n, err
 }

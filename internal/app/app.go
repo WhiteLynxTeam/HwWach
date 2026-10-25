@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,20 +22,15 @@ import (
 	"HwWach/internal/routes"
 	"HwWach/internal/services"
 	"HwWach/internal/storage"
+	"HwWach/internal/tsclient"
 	"HwWach/migrations"
 )
 
 type App struct {
-	cfg      *config.Config
-	db       *gorm.DB
+	cfg        *config.Config
+	db         *gorm.DB
 	storageSvc storage.Storage
-	router   *gin.Engine
-
-	assetH     handlers.AssetHandler
-	photoH     handlers.PhotoHandler
-	reqH       handlers.RequestHandler
-	changeReqH handlers.AssetChangeRequestHandler
-	categoryH  handlers.CategoryHandler
+	router     *gin.Engine
 }
 
 func NewApp() (*App, error) {
@@ -83,38 +79,51 @@ func NewApp() (*App, error) {
 	}
 	log.Printf("Storage type: %s\n", cfg.StorageType)
 
+	ts := tsclient.New(strings.TrimRight(cfg.AuthInternalURL, "/"), cfg.InternalAPIKey)
+
 	assetRepo := repository.NewAssetRepo(db)
 	photoRepo := repository.NewPhotoRepo(db)
-	requestRepo := repository.NewRequestRepo(db)
 	changeReqRepo := repository.NewAssetChangeRequestRepo(db)
 	categoryRepo := repository.NewCategoryRepo(db)
 
-	categorySvc := services.NewCategoryService(categoryRepo, assetRepo)
-	assetSvc := services.NewAssetService(assetRepo, photoRepo)
-	photoSvc := services.NewPhotoService(photoRepo, assetRepo, storageSvc)
-	reqSvc := services.NewRequestService(requestRepo, assetRepo, photoRepo)
-	changeReqSvc := services.NewAssetChangeRequestService(changeReqRepo, assetRepo)
-
-	categoryH := handlers.NewCategoryHandler(categorySvc)
-	assetH := handlers.NewAssetHandler(assetSvc, photoSvc, categorySvc)
-	photoH := handlers.NewPhotoHandler(photoSvc)
-	reqH := handlers.NewRequestHandler(reqSvc)
-	changeReqH := handlers.NewAssetChangeRequestHandler(changeReqSvc)
+	auditSvc := services.NewAuditService(db)
+	orgSvc := services.NewOrgService(db, ts, storageSvc, auditSvc)
+	rolesSvc := services.NewRolesService(db, ts, auditSvc)
+	lifecycleSvc := services.NewLifecycleService(db, rolesSvc, auditSvc)
+	categorySvc := services.NewCategoryService(categoryRepo, assetRepo, cfg.PlatformOrgID)
+	assetSvc := services.NewAssetService(db, rolesSvc, orgSvc, auditSvc)
+	photoSvc := services.NewPhotoService(photoRepo, storageSvc, orgSvc)
+	reqSvc := services.NewRequestService(db, lifecycleSvc, auditSvc)
+	changeReqSvc := services.NewAssetChangeRequestService(changeReqRepo, assetSvc)
 
 	router := gin.Default()
-	jwtMW := middleware.JWTMiddleware([]byte(cfg.JWTSecret))
-	routes.SetupRoutes(router, assetH, photoH, reqH, changeReqH, categoryH, jwtMW)
+	// IP клиента за прокси Render (8.7): без доверенных прокси все запросы «с одного адреса»
+	if cfg.TrustedProxies != "" {
+		if err := router.SetTrustedProxies(strings.Split(cfg.TrustedProxies, ",")); err != nil {
+			return nil, err
+		}
+	} else {
+		_ = router.SetTrustedProxies(nil)
+	}
+	if cfg.InternalAPIKey == "" {
+		log.Println("WARNING: INTERNAL_API_KEY не задан — внутренние запросы ts ↔ go не работают")
+	}
+	routes.SetupRoutes(router, routes.Handlers{
+		Asset:         handlers.NewAssetHandler(assetSvc, lifecycleSvc, photoSvc, categorySvc),
+		Roles:         handlers.NewRolesHandler(rolesSvc),
+		Photo:         handlers.NewPhotoHandler(photoSvc),
+		Request:       handlers.NewRequestHandler(reqSvc),
+		ChangeRequest: handlers.NewAssetChangeRequestHandler(changeReqSvc),
+		Category:      handlers.NewCategoryHandler(categorySvc),
+		Audit:         handlers.NewAuditHandler(auditSvc),
+		Internal:      handlers.NewInternalHandler(rolesSvc, orgSvc),
+	}, middleware.JWTMiddleware([]byte(cfg.JWTSecret)), middleware.InternalKeyMiddleware(cfg.InternalAPIKey))
 
 	return &App{
 		cfg:        cfg,
 		db:         db,
 		storageSvc: storageSvc,
 		router:     router,
-		assetH:     assetH,
-		photoH:     photoH,
-		reqH:       reqH,
-		changeReqH: changeReqH,
-		categoryH:  categoryH,
 	}, nil
 }
 

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"HwWach/internal/authz"
 	"HwWach/internal/models"
 	"HwWach/internal/repository"
 	"HwWach/internal/storage"
@@ -12,13 +13,11 @@ import (
 )
 
 type PhotoService interface {
-	CreatePendingPhoto(ctx context.Context, userUUID uuid.UUID, fileName string, fileSize int64, contentType string, clientID *uuid.UUID) (*models.Photo, error)
-	CompletePhotoUpload(ctx context.Context, photoUUID uuid.UUID) error
+	CreatePendingPhoto(ctx context.Context, p *authz.Principal, fileName string, fileSize int64, contentType string, clientID *uuid.UUID) (*models.Photo, error)
+	CompletePhotoUpload(ctx context.Context, p *authz.Principal, photoUUID uuid.UUID) error
 	GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Photo, error)
 	GetByClientID(ctx context.Context, clientID uuid.UUID) (*models.Photo, error)
-	GetByClientIDs(ctx context.Context, clientIDs []uuid.UUID) ([]*models.Photo, error)
-	ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error)
-	ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error)
+	ListMine(ctx context.Context, p *authz.Principal) ([]*models.Photo, error)
 	GetPresignedUploadURL(ctx context.Context, objectName, contentType string) (string, error)
 	GetPresignedDownloadURL(ctx context.Context, objectName string) (string, error)
 	GetPublicURL(objectName string) string
@@ -26,37 +25,37 @@ type PhotoService interface {
 
 type photoService struct {
 	photoRepo repository.PhotoRepo
-	assetRepo repository.AssetRepo
 	minioSVC  storage.Storage
+	orgs      OrgService
 }
 
-func NewPhotoService(
-	photoRepo repository.PhotoRepo,
-	assetRepo repository.AssetRepo,
-	minioSVC storage.Storage) PhotoService {
+func NewPhotoService(photoRepo repository.PhotoRepo, minioSVC storage.Storage, orgs OrgService) PhotoService {
 	return &photoService{
 		photoRepo: photoRepo,
-		assetRepo: assetRepo,
 		minioSVC:  minioSVC,
+		orgs:      orgs,
 	}
 }
 
-func (s *photoService) CreatePendingPhoto(ctx context.Context, userUUID uuid.UUID, fileName string, fileSize int64, contentType string, clientID *uuid.UUID) (*models.Photo, error) {
+func (s *photoService) CreatePendingPhoto(ctx context.Context, p *authz.Principal, fileName string, fileSize int64, contentType string, clientID *uuid.UUID) (*models.Photo, error) {
 	photoUUID, err := uuid.NewV7()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate UUID v7: %w", err)
 	}
-	objectName := fmt.Sprintf("%s/%s_%s", userUUID.String(), photoUUID.String(), fileName)
+	// фото организации — в её папке: при окончательном удалении организации их проще найти
+	objectName := fmt.Sprintf("%s/%s/%s_%s", p.OrgID.String(), p.AccountID.String(), photoUUID.String(), fileName)
 
 	photo := &models.Photo{
-		UUID:        photoUUID,
-		UserUUID:    userUUID,
-		URL:         objectName, // Сохраняем только относительный путь
-		Status:      models.PhotoStatusPending,
-		FileSize:    fileSize,
-		FileName:    fileName,
-		ContentType: contentType,
-		ClientID:    clientID,
+		UUID:           photoUUID,
+		OrganizationID: p.OrgID,
+		AccountUUID:    p.AccountID,
+		PersonUUID:     p.PersonID,
+		URL:            objectName, // Сохраняем только относительный путь
+		Status:         models.PhotoStatusPending,
+		FileSize:       fileSize,
+		FileName:       fileName,
+		ContentType:    contentType,
+		ClientID:       clientID,
 	}
 
 	if err := s.photoRepo.Create(ctx, photo); err != nil {
@@ -66,8 +65,13 @@ func (s *photoService) CreatePendingPhoto(ctx context.Context, userUUID uuid.UUI
 	return photo, nil
 }
 
-func (s *photoService) CompletePhotoUpload(ctx context.Context, photoUUID uuid.UUID) error {
-	return s.photoRepo.UpdateStatus(ctx, photoUUID, models.PhotoStatusCompleted)
+func (s *photoService) CompletePhotoUpload(ctx context.Context, p *authz.Principal, photoUUID uuid.UUID) error {
+	if err := s.photoRepo.UpdateStatus(ctx, photoUUID, models.PhotoStatusCompleted); err != nil {
+		return err
+	}
+	// первое фото — организация «наполнена» (8.6)
+	s.orgs.ReportActivity(p.OrgID, true)
+	return nil
 }
 
 func (s *photoService) GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.Photo, error) {
@@ -78,23 +82,11 @@ func (s *photoService) GetByClientID(ctx context.Context, clientID uuid.UUID) (*
 	return s.photoRepo.GetByClientID(ctx, clientID)
 }
 
-func (s *photoService) GetByClientIDs(ctx context.Context, clientIDs []uuid.UUID) ([]*models.Photo, error) {
-	if len(clientIDs) == 0 {
-		return []*models.Photo{}, nil
-	}
-	return s.photoRepo.GetByClientIDs(ctx, clientIDs)
-}
-
-func (s *photoService) ListByUserUUID(ctx context.Context, userUUID uuid.UUID) ([]*models.Photo, error) {
-	return s.photoRepo.ListByUserUUID(ctx, userUUID)
-}
-
-func (s *photoService) ListByAssetUUID(ctx context.Context, assetUUID uuid.UUID) ([]*models.Photo, error) {
-	return s.photoRepo.ListByAssetUUID(ctx, assetUUID)
+func (s *photoService) ListMine(ctx context.Context, p *authz.Principal) ([]*models.Photo, error) {
+	return s.photoRepo.ListByAccount(ctx, p.OrgID, p.AccountID)
 }
 
 func (s *photoService) GetPresignedUploadURL(ctx context.Context, objectName, contentType string) (string, error) {
-	// objectName теперь содержит чистый путь (user_id/photo_id_filename)
 	return s.minioSVC.PresignedPutURL(ctx, objectName, contentType, 24*time.Hour)
 }
 

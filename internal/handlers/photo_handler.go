@@ -51,7 +51,7 @@ func (p photoHandler) UploadPhoto(c *gin.Context) {
 		return
 	}
 
-	userUUID, ok := middleware.RequireUserUUID(c)
+	pr, ok := middleware.CurrentPrincipal(c)
 	if !ok {
 		return
 	}
@@ -61,7 +61,7 @@ func (p photoHandler) UploadPhoto(c *gin.Context) {
 		existingPhoto, err := p.photoSvc.GetByClientID(c.Request.Context(), *req.ClientID)
 		if err == nil {
 			// Запись найдена
-			if existingPhoto.UserUUID != userUUID {
+			if existingPhoto.AccountUUID != pr.AccountID {
 				c.JSON(http.StatusForbidden, gin.H{"error": "access denied: photo belongs to another user"})
 				return
 			}
@@ -100,7 +100,7 @@ func (p photoHandler) UploadPhoto(c *gin.Context) {
 	}
 
 	// Создаём запись в БД со статусом pending
-	photo, err := p.photoSvc.CreatePendingPhoto(c.Request.Context(), userUUID, req.Filename, req.FileSize, req.ContentType, req.ClientID)
+	photo, err := p.photoSvc.CreatePendingPhoto(c.Request.Context(), pr, req.Filename, req.FileSize, req.ContentType, req.ClientID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create photo record: " + err.Error()})
 		return
@@ -149,7 +149,7 @@ func (p photoHandler) ConfirmUpload(c *gin.Context) {
 		return
 	}
 
-	userUUID, ok := middleware.RequireUserUUID(c)
+	pr, ok := middleware.CurrentPrincipal(c)
 	if !ok {
 		return
 	}
@@ -169,7 +169,7 @@ func (p photoHandler) ConfirmUpload(c *gin.Context) {
 	}
 
 	// Проверяем, что фото принадлежит пользователю
-	if photo.UserUUID != userUUID {
+	if photo.AccountUUID != pr.AccountID {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
@@ -181,7 +181,7 @@ func (p photoHandler) ConfirmUpload(c *gin.Context) {
 	}
 
 	// Меняем статус на completed
-	if err := p.photoSvc.CompletePhotoUpload(c.Request.Context(), photoUUID); err != nil {
+	if err := p.photoSvc.CompletePhotoUpload(c.Request.Context(), pr, photoUUID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to complete upload: " + err.Error()})
 		return
 	}
@@ -213,16 +213,16 @@ func (p photoHandler) ConfirmUpload(c *gin.Context) {
 // @Router       /photos [get]
 // @Security     BearerAuth
 func (p photoHandler) ListUserPhotos(c *gin.Context) {
-	userUUID, ok := middleware.RequireUserUUID(c)
+	pr, ok := middleware.CurrentPrincipal(c)
 	if !ok {
 		return
 	}
 
-	photos, err := p.photoSvc.ListByUserUUID(c.Request.Context(), userUUID)
+	photos, err := p.photoSvc.ListMine(c.Request.Context(), pr)
 	if err != nil {
 		// Если таблица не существует — вернём пустой список с информацией
 		c.JSON(http.StatusOK, gin.H{
-			"user_uuid": userUUID.String(),
+			"user_uuid": pr.AccountID.String(),
 			"photos":    []string{},
 			"note":      "Table not found or DB error: " + err.Error(),
 		})
@@ -245,7 +245,7 @@ func (p photoHandler) ListUserPhotos(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.PhotoListResponse{
-		UserUUID: userUUID.String(),
+		UserUUID: pr.AccountID.String(),
 		Photos:   photoResponses,
 	})
 }
@@ -285,19 +285,3 @@ func (p photoHandler) DownloadPhoto(c *gin.Context) {
 	c.Redirect(http.StatusFound, downloadURL)
 }
 
-// DeletePhoto godoc
-// @Summary      Удалить фотографию
-// @Description  Удаление фотографии по идентификатору
-// @Tags         photos
-// @Accept       json
-// @Produce      json
-// @Param        id  path      string  true  "ID фотографии (uuid)"
-// @Success      200  {object}  map[string]string
-// @Failure      401  {object}  map[string]string
-// @Failure      404  {object}  map[string]string
-// @Router       /photos/{id} [delete]
-// @Security     BearerAuth
-func (p photoHandler) DeletePhoto(c *gin.Context) {
-	//TODO implement me
-	panic("implement me")
-}

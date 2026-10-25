@@ -8,15 +8,18 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func SetupRoutes(
-	r *gin.Engine,
-	assetHandler handlers.AssetHandler,
-	photoHandler handlers.PhotoHandler,
-	requestHandler handlers.RequestHandler,
-	changeRequestHandler handlers.AssetChangeRequestHandler,
-	categoryHandler handlers.CategoryHandler,
-	jwtMiddleware gin.HandlerFunc,
-) {
+type Handlers struct {
+	Asset         handlers.AssetHandler
+	Roles         handlers.RolesHandler
+	Photo         handlers.PhotoHandler
+	Request       handlers.RequestHandler
+	ChangeRequest handlers.AssetChangeRequestHandler
+	Category      handlers.CategoryHandler
+	Audit         handlers.AuditHandler
+	Internal      handlers.InternalHandler
+}
+
+func SetupRoutes(r *gin.Engine, h Handlers, jwtMiddleware, internalMiddleware gin.HandlerFunc) {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
@@ -34,47 +37,81 @@ func SetupRoutes(
 
 	assets := r.Group("/assets", jwtMiddleware)
 	{
-		assets.POST("", assetHandler.CreateAsset)
-		assets.GET("", assetHandler.ListUserAssets)
-		assets.GET("/paginated", assetHandler.ListUserAssetsPaginated)
-		assets.GET("/check-inventory", assetHandler.CheckInventoryUnique)
-		assets.GET("/:id", assetHandler.GetAsset)
-		assets.PUT("/:id", assetHandler.UpdateAsset)
-		assets.GET("/:id/photos", assetHandler.ListAssetPhotos)
+		assets.POST("", h.Asset.CreateAsset)
+		assets.GET("", h.Asset.ListUserAssets)
+		assets.GET("/paginated", h.Asset.ListUserAssetsPaginated)
+		assets.GET("/check-inventory", h.Asset.CheckInventoryUnique)
+		assets.GET("/change-requests", h.ChangeRequest.ListPending)
+		assets.PATCH("/change-requests/:id", h.ChangeRequest.ApproveRequest)
+		assets.GET("/:id", h.Asset.GetAsset)
+		assets.PUT("/:id", h.Asset.UpdateAsset)
+		assets.DELETE("/:id", h.Asset.DeleteAsset)
+		assets.POST("/:id/moderate", h.Asset.ModerateAsset)
+		assets.GET("/:id/photos", h.Asset.ListAssetPhotos)
+		assets.GET("/:id/history", h.Asset.History)
+		assets.POST("/:id/change-requests", h.ChangeRequest.CreateRequest)
 
-		assets.POST("/:id/change-requests", changeRequestHandler.CreateRequest)
-		assets.GET("/change-requests", changeRequestHandler.ListPending)
-		assets.PATCH("/change-requests/:id", changeRequestHandler.ApproveRequest)
+		// состояние актива (3.6)
+		assets.POST("/:id/status", h.Asset.ChangeStatus)
+		assets.POST("/:id/repair/start", h.Asset.StartRepair)
+		assets.POST("/:id/repair/finish", h.Asset.FinishRepair)
+
+		// бизнес-роли и передачи (3.2, 3.3)
+		assets.POST("/:id/mol", h.Roles.AssignMol)
+		assets.DELETE("/:id/mol", h.Roles.RemoveMol)
+		assets.POST("/:id/users", h.Roles.AddUser)
+		assets.DELETE("/:id/users/:person_id", h.Roles.RemoveUser)
+		assets.GET("/:id/transfers", h.Roles.Transfers)
+	}
+
+	r.GET("/me/assignments", jwtMiddleware, h.Roles.MyAssignments)
+
+	roles := r.Group("/asset-roles", jwtMiddleware)
+	{
+		roles.GET("/disputes", h.Roles.Disputes)
+		roles.POST("/:id/ack", h.Roles.Ack)
+		roles.POST("/:id/resolve", h.Roles.Resolve)
 	}
 
 	categories := r.Group("/categories", jwtMiddleware)
 	{
-		categories.GET("", categoryHandler.ListAdmin)
-		categories.POST("", categoryHandler.AdminCreate)
-		categories.GET("/search", categoryHandler.Search)
-		categories.GET("/sync", categoryHandler.Sync)
-		categories.GET("/pending", categoryHandler.ListPending)
-		categories.GET("/:id/affected", categoryHandler.GetAffectedAssets)
-		categories.PUT("/:id", categoryHandler.AdminUpdate)
-		categories.POST("/:id/merge", categoryHandler.AdminMerge)
-		categories.PATCH("/:id/moderate", categoryHandler.Moderate)
+		categories.GET("", h.Category.ListAdmin)
+		categories.POST("", h.Category.AdminCreate)
+		categories.GET("/search", h.Category.Search)
+		categories.GET("/sync", h.Category.Sync)
+		categories.GET("/pending", h.Category.ListPending)
+		categories.GET("/:id/affected", h.Category.GetAffectedAssets)
+		categories.PUT("/:id", h.Category.AdminUpdate)
+		categories.POST("/:id/merge", h.Category.AdminMerge)
+		categories.PATCH("/:id/moderate", h.Category.Moderate)
 	}
 
-	r.GET("/photos/:id/download", photoHandler.DownloadPhoto)
+	r.GET("/photos/:id/download", h.Photo.DownloadPhoto)
 
 	photos := r.Group("/photos", jwtMiddleware)
 	{
-		photos.POST("/upload-url", photoHandler.UploadPhoto)
-		photos.POST("/complete-upload", photoHandler.ConfirmUpload)
-		photos.GET("", photoHandler.ListUserPhotos)
-		photos.DELETE("/:id", photoHandler.DeletePhoto)
+		photos.POST("/upload-url", h.Photo.UploadPhoto)
+		photos.POST("/complete-upload", h.Photo.ConfirmUpload)
+		photos.GET("", h.Photo.ListUserPhotos)
 	}
 
 	req := r.Group("/requests", jwtMiddleware)
 	{
-		req.POST("", requestHandler.CreateRequest)
-		req.GET("/:id", requestHandler.GetRequest)
-		req.DELETE("/:id", requestHandler.DeleteRequest)
+		req.POST("", h.Request.CreateRequest)
+		req.GET("", h.Request.ListRequests)
+		req.GET("/:id", h.Request.GetRequest)
+		req.PATCH("/:id", h.Request.UpdateRequestStatus)
+		req.DELETE("/:id", h.Request.DeleteRequest)
+	}
+
+	r.GET("/audit", jwtMiddleware, h.Audit.List)
+
+	// внутренние запросы ts → go (5.1)
+	internal := r.Group("/internal", internalMiddleware)
+	{
+		internal.GET("/persons/:id/assets-count", h.Internal.PersonAssetsCount)
+		internal.POST("/persons/:id/dismissed", h.Internal.PersonDismissed)
+		internal.DELETE("/organizations/:id", h.Internal.DeleteOrganization)
 	}
 }
 

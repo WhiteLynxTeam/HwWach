@@ -43,7 +43,7 @@ func (h *assetChangeRequestHandler) CreateRequest(c *gin.Context) {
 		return
 	}
 
-	userUUID, ok := middleware.RequireUserUUID(c)
+	p, ok := middleware.CurrentPrincipal(c)
 	if !ok {
 		return
 	}
@@ -54,10 +54,9 @@ func (h *assetChangeRequestHandler) CreateRequest(c *gin.Context) {
 		return
 	}
 
-	req, err := h.svc.CreateRequest(c.Request.Context(), userUUID, assetUUID, input)
+	req, err := h.svc.CreateRequest(c.Request.Context(), p, assetUUID, input)
 	if err != nil {
-		// В реальном приложении можно различать 404 и 400
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		writeErr(c, err)
 		return
 	}
 
@@ -75,9 +74,13 @@ func (h *assetChangeRequestHandler) CreateRequest(c *gin.Context) {
 // @Router       /assets/change-requests [get]
 // @Security     BearerAuth
 func (h *assetChangeRequestHandler) ListPending(c *gin.Context) {
-	requests, err := h.svc.ListPending(c.Request.Context())
+	p, ok := middleware.CurrentPrincipal(c)
+	if !ok {
+		return
+	}
+	requests, err := h.svc.ListPending(c.Request.Context(), p)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		writeErr(c, err)
 		return
 	}
 
@@ -113,8 +116,7 @@ func (h *assetChangeRequestHandler) ApproveRequest(c *gin.Context) {
 		return
 	}
 
-	// Для админов можно доставать ID админа
-	adminUUID, ok := middleware.RequireUserUUID(c)
+	p, ok := middleware.CurrentPrincipal(c)
 	if !ok {
 		return
 	}
@@ -125,8 +127,8 @@ func (h *assetChangeRequestHandler) ApproveRequest(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.ApproveRequest(c.Request.Context(), adminUUID, reqUUID, input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := h.svc.ApproveRequest(c.Request.Context(), p, reqUUID, input); err != nil {
+		writeErr(c, err)
 		return
 	}
 
@@ -137,7 +139,8 @@ func changeRequestToResponse(r *models.AssetChangeRequest) dto.AssetChangeReques
 	resp := dto.AssetChangeRequestResponse{
 		UUID:         r.UUID.String(),
 		AssetUUID:    r.AssetUUID.String(),
-		UserUUID:     r.UserUUID.String(),
+		UserUUID:     r.AccountUUID.String(),
+		PersonUUID:   r.PersonUUID.String(),
 		Type:         string(r.RequestType),
 		Reason:       r.Reason,
 		AdminComment: r.AdminComment,
