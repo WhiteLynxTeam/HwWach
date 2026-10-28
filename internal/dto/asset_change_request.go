@@ -24,7 +24,8 @@ type AssetChangeRequestResponse struct {
 	UUID         string          `json:"uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
 	ClientID     *string         `json:"client_id,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
 	AssetUUID    string          `json:"asset_uuid" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
-	UserUUID     string          `json:"user_uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	UserUUID     string          `json:"user_uuid" example:"550e8400-e29b-41d4-a716-446655440000"` // учётная запись заявителя
+	PersonUUID   string          `json:"person_uuid"`                                              // человек в момент заявки
 	Type         string          `json:"type" example:"update"`
 	ProposedData json.RawMessage `json:"proposed_data,omitempty" swaggertype:"object"`
 	Reason       string          `json:"reason" example:"Неверно указан тип"`

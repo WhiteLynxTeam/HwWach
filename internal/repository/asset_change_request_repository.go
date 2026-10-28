@@ -11,9 +11,9 @@ import (
 type AssetChangeRequestRepo interface {
 	Create(ctx context.Context, req *models.AssetChangeRequest) error
 	GetPendingByAssetID(ctx context.Context, assetUUID uuid.UUID) (*models.AssetChangeRequest, error)
-	GetByUUID(ctx context.Context, uuid uuid.UUID) (*models.AssetChangeRequest, error)
+	GetByUUID(ctx context.Context, org, uuid uuid.UUID) (*models.AssetChangeRequest, error)
 	UpdateStatus(ctx context.Context, req *models.AssetChangeRequest) error
-	ListPending(ctx context.Context) ([]*models.AssetChangeRequest, error)
+	ListPending(ctx context.Context, org uuid.UUID) ([]*models.AssetChangeRequest, error)
 }
 
 type assetChangeRequestRepo struct {
@@ -47,9 +47,9 @@ func (r assetChangeRequestRepo) GetPendingByAssetID(ctx context.Context, assetUU
 	return &req, nil
 }
 
-func (r assetChangeRequestRepo) GetByUUID(ctx context.Context, reqUUID uuid.UUID) (*models.AssetChangeRequest, error) {
+func (r assetChangeRequestRepo) GetByUUID(ctx context.Context, org, reqUUID uuid.UUID) (*models.AssetChangeRequest, error) {
 	var req models.AssetChangeRequest
-	err := r.db.WithContext(ctx).First(&req, "uuid = ?", reqUUID).Error
+	err := r.db.WithContext(ctx).First(&req, "uuid = ? AND organization_id = ?", reqUUID, org).Error
 	if err != nil {
 		return nil, err
 	}
@@ -60,10 +60,11 @@ func (r assetChangeRequestRepo) UpdateStatus(ctx context.Context, req *models.As
 	return r.db.WithContext(ctx).Save(req).Error
 }
 
-func (r assetChangeRequestRepo) ListPending(ctx context.Context) ([]*models.AssetChangeRequest, error) {
+func (r assetChangeRequestRepo) ListPending(ctx context.Context, org uuid.UUID) ([]*models.AssetChangeRequest, error) {
 	var requests []*models.AssetChangeRequest
 	err := r.db.WithContext(ctx).
-		Where("status = ?", models.ModerationPending).
+		Where("organization_id = ? AND status = ?", org, models.ModerationPending).
+		Order("created_at").
 		Find(&requests).Error
 	return requests, err
 }

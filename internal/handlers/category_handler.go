@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"HwWach/internal/authz"
 	"HwWach/internal/dto"
 	"HwWach/internal/middleware"
 	"HwWach/internal/models"
@@ -37,7 +38,7 @@ func NewCategoryHandler(categorySvc services.CategoryService) CategoryHandler {
 // @Router       /categories/search [get]
 // @Security     BearerAuth
 func (h *categoryHandler) Search(c *gin.Context) {
-	userUUID, ok := middleware.RequireUserUUID(c)
+	p, ok := middleware.CurrentPrincipal(c)
 	if !ok {
 		return
 	}
@@ -51,7 +52,7 @@ func (h *categoryHandler) Search(c *gin.Context) {
 		return
 	}
 
-	categories, err := h.categorySvc.Search(c.Request.Context(), query, userUUID)
+	categories, err := h.categorySvc.Search(c.Request.Context(), p, query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to search categories: " + err.Error()})
 		return
@@ -77,7 +78,7 @@ func (h *categoryHandler) Search(c *gin.Context) {
 // @Router       /categories/sync [get]
 // @Security     BearerAuth
 func (h *categoryHandler) Sync(c *gin.Context) {
-	userUUID, ok := middleware.RequireUserUUID(c)
+	p, ok := middleware.CurrentPrincipal(c)
 	if !ok {
 		return
 	}
@@ -93,7 +94,7 @@ func (h *categoryHandler) Sync(c *gin.Context) {
 		sinceTime = &parsed
 	}
 
-	resp, err := h.categorySvc.Sync(c.Request.Context(), userUUID, sinceTime)
+	resp, err := h.categorySvc.Sync(c.Request.Context(), p, sinceTime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to sync categories: " + err.Error()})
 		return
@@ -114,12 +115,12 @@ func (h *categoryHandler) Sync(c *gin.Context) {
 // @Router       /categories/pending [get]
 // @Security     BearerAuth
 func (h *categoryHandler) ListPending(c *gin.Context) {
-	if !middleware.IsAdmin(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+	p, ok := middleware.RequirePerm(c, authz.PermCategoriesManage)
+	if !ok {
 		return
 	}
 
-	categories, err := h.categorySvc.ListPending(c.Request.Context())
+	categories, err := h.categorySvc.ListPending(c.Request.Context(), p)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list pending categories: " + err.Error()})
 		return
@@ -148,8 +149,8 @@ func (h *categoryHandler) ListPending(c *gin.Context) {
 // @Router       /categories/{id}/moderate [patch]
 // @Security     BearerAuth
 func (h *categoryHandler) Moderate(c *gin.Context) {
-	if !middleware.IsAdmin(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+	p, ok := middleware.RequirePerm(c, authz.PermCategoriesManage)
+	if !ok {
 		return
 	}
 
@@ -166,9 +167,9 @@ func (h *categoryHandler) Moderate(c *gin.Context) {
 		return
 	}
 
-	updated, err := h.categorySvc.Moderate(c.Request.Context(), categoryUUID, &req)
+	updated, err := h.categorySvc.Moderate(c.Request.Context(), p, categoryUUID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		writeErr(c, err)
 		return
 	}
 
@@ -208,8 +209,8 @@ func catToResponse(c *models.Category) dto.CategoryResponse {
 // @Router       /categories [get]
 // @Security     BearerAuth
 func (h *categoryHandler) ListAdmin(c *gin.Context) {
-	if !middleware.IsAdmin(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+	p, ok := middleware.RequirePerm(c, authz.PermCategoriesManage)
+	if !ok {
 		return
 	}
 
@@ -228,7 +229,7 @@ func (h *categoryHandler) ListAdmin(c *gin.Context) {
 
 	search := c.Query("q")
 
-	responses, err := h.categorySvc.ListAdmin(c.Request.Context(), levelPtr, statusPtr, search)
+	responses, err := h.categorySvc.ListAdmin(c.Request.Context(), p, levelPtr, statusPtr, search)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list categories: " + err.Error()})
 		return
@@ -251,8 +252,8 @@ func (h *categoryHandler) ListAdmin(c *gin.Context) {
 // @Router       /categories/{id}/affected [get]
 // @Security     BearerAuth
 func (h *categoryHandler) GetAffectedAssets(c *gin.Context) {
-	if !middleware.IsAdmin(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+	p, ok := middleware.RequirePerm(c, authz.PermCategoriesManage)
+	if !ok {
 		return
 	}
 
@@ -262,9 +263,9 @@ func (h *categoryHandler) GetAffectedAssets(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.categorySvc.GetAffectedAssets(c.Request.Context(), categoryUUID)
+	resp, err := h.categorySvc.GetAffectedAssets(c.Request.Context(), p, categoryUUID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		writeErr(c, err)
 		return
 	}
 
@@ -285,8 +286,8 @@ func (h *categoryHandler) GetAffectedAssets(c *gin.Context) {
 // @Router       /categories [post]
 // @Security     BearerAuth
 func (h *categoryHandler) AdminCreate(c *gin.Context) {
-	if !middleware.IsAdmin(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+	p, ok := middleware.RequirePerm(c, authz.PermCategoriesManage)
+	if !ok {
 		return
 	}
 
@@ -296,9 +297,9 @@ func (h *categoryHandler) AdminCreate(c *gin.Context) {
 		return
 	}
 
-	created, err := h.categorySvc.AdminCreate(c.Request.Context(), &req)
+	created, err := h.categorySvc.AdminCreate(c.Request.Context(), p, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		writeErr(c, err)
 		return
 	}
 
@@ -320,8 +321,8 @@ func (h *categoryHandler) AdminCreate(c *gin.Context) {
 // @Router       /categories/{id} [put]
 // @Security     BearerAuth
 func (h *categoryHandler) AdminUpdate(c *gin.Context) {
-	if !middleware.IsAdmin(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+	p, ok := middleware.RequirePerm(c, authz.PermCategoriesManage)
+	if !ok {
 		return
 	}
 
@@ -337,9 +338,9 @@ func (h *categoryHandler) AdminUpdate(c *gin.Context) {
 		return
 	}
 
-	updated, err := h.categorySvc.AdminUpdate(c.Request.Context(), categoryUUID, &req)
+	updated, err := h.categorySvc.AdminUpdate(c.Request.Context(), p, categoryUUID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		writeErr(c, err)
 		return
 	}
 
@@ -361,8 +362,8 @@ func (h *categoryHandler) AdminUpdate(c *gin.Context) {
 // @Router       /categories/{id}/merge [post]
 // @Security     BearerAuth
 func (h *categoryHandler) AdminMerge(c *gin.Context) {
-	if !middleware.IsAdmin(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "admin access required"})
+	p, ok := middleware.RequirePerm(c, authz.PermCategoriesManage)
+	if !ok {
 		return
 	}
 
@@ -378,9 +379,9 @@ func (h *categoryHandler) AdminMerge(c *gin.Context) {
 		return
 	}
 
-	merged, err := h.categorySvc.AdminMerge(c.Request.Context(), sourceUUID, &req)
+	merged, err := h.categorySvc.AdminMerge(c.Request.Context(), p, sourceUUID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		writeErr(c, err)
 		return
 	}
 

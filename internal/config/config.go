@@ -20,6 +20,14 @@ type Config struct {
 	YandexEndpoint   string `mapstructure:"YANDEX_ENDPOINT"`
 	YandexDiskToken  string `mapstructure:"YANDEX_DISK_TOKEN"`
 	YandexDiskBucket string `mapstructure:"YANDEX_DISK_BUCKET"`
+
+	// Внутренние запросы go ↔ ts (5.1)
+	InternalAPIKey  string `mapstructure:"INTERNAL_API_KEY"`
+	AuthInternalURL string `mapstructure:"AUTH_INTERNAL_URL"`
+	// Организация владельца платформы: только её админ правит общие категории L1
+	PlatformOrgID string `mapstructure:"PLATFORM_ORG_ID"`
+	// Прокси Render перед приложением (8.7), через запятую; пусто — не доверять никому
+	TrustedProxies string `mapstructure:"TRUSTED_PROXIES"`
 }
 
 func Load() (*Config, error) {
@@ -45,6 +53,10 @@ func Load() (*Config, error) {
 		"YANDEX_DISK_TOKEN",
 		"YANDEX_DISK_BUCKET",
 		"TZ",
+		"INTERNAL_API_KEY",
+		"AUTH_INTERNAL_URL",
+		"PLATFORM_ORG_ID",
+		"TRUSTED_PROXIES",
 	}
 
 	for _, key := range keys {
@@ -57,6 +69,7 @@ func Load() (*Config, error) {
 	v.SetDefault("miniobucket", "photos")
 	v.SetDefault("STORAGE_TYPE", "yandex")
 	v.SetDefault("YANDEX_DISK_BUCKET", "photos")
+	v.SetDefault("AUTH_INTERNAL_URL", "https://ts-back-hwwach.onrender.com")
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
