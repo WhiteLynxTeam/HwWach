@@ -417,13 +417,21 @@ func (s *categoryService) AdminUpdate(ctx context.Context, p *authz.Principal, i
 	cat.AdminComment = req.AdminComment
 	cat.UpdatedAt = time.Now()
 
-	if err := s.categoryRepo.Update(ctx, cat); err != nil {
-		return nil, fmt.Errorf("не удалось обновить категорию: %w", err)
-	}
-
-	// Если имя изменилось и запрошено обновление связанных полей
-	if nameChanged && req.UpdateLinkedAssets {
-		_ = s.assetRepo.UpdateCategoryName(ctx, cat.UUID, cleanName)
+	// Название категории продублировано в assets.category — при переименовании обновляем его всегда
+	// и в той же транзакции: иначе карточки показывали бы старое имя (update_linked_assets больше не учитывается)
+	err = s.categoryRepo.InTx(ctx, func(cats repository.CategoryRepo, assets repository.AssetRepo) error {
+		if err := cats.Update(ctx, cat); err != nil {
+			return fmt.Errorf("не удалось обновить категорию: %w", err)
+		}
+		if nameChanged {
+			if err := assets.UpdateCategoryName(ctx, cat.UUID, cleanName); err != nil {
+				return fmt.Errorf("не удалось обновить название категории у активов: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	count, _ := s.assetRepo.CountAssetsByCategory(ctx, cat.UUID)
@@ -464,13 +472,25 @@ func (s *categoryService) AdminMerge(ctx context.Context, p *authz.Principal, so
 	}
 	source.UpdatedAt = time.Now()
 
-	if err := s.categoryRepo.Update(ctx, source); err != nil {
-		return nil, fmt.Errorf("не удалось обновить статус категории: %w", err)
-	}
-
-	// Обновляем связанные поля в таблице assets, если запрошено
-	if req.UpdateLinkedAssets {
-		_ = s.assetRepo.ReassignCategory(ctx, source.UUID, target.UUID, target.Name)
+	// Всё в одной транзакции: пометка «слита», перенос активов, счётчик использований.
+	// Активы переносятся всегда (update_linked_assets больше не учитывается): слитую категорию
+	// нельзя выбрать в новых карточках, а оставшиеся в ней активы показывали бы её название
+	err = s.categoryRepo.InTx(ctx, func(cats repository.CategoryRepo, assets repository.AssetRepo) error {
+		if err := cats.Update(ctx, source); err != nil {
+			return fmt.Errorf("не удалось обновить статус категории: %w", err)
+		}
+		if err := assets.ReassignCategory(ctx, source.UUID, target.UUID, target.Name); err != nil {
+			return fmt.Errorf("не удалось перенести активы в категорию «%s»: %w", target.Name, err)
+		}
+		if source.UsageCount > 0 {
+			if err := cats.AddUsage(ctx, target.UUID, source.UsageCount); err != nil {
+				return fmt.Errorf("не удалось обновить счётчик категории: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	count, _ := s.assetRepo.CountAssetsByCategory(ctx, source.UUID)

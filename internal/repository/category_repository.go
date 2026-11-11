@@ -30,6 +30,10 @@ type CategoryRepo interface {
 	Update(ctx context.Context, category *models.Category) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	IncrementUsage(ctx context.Context, id uuid.UUID) error
+	AddUsage(ctx context.Context, id uuid.UUID, n int) error
+	// InTx выполняет fn в одной транзакции: репозитории внутри fn работают через неё.
+	// Ошибка из fn откатывает всё — категория и её активы меняются вместе или никак
+	InTx(ctx context.Context, fn func(cats CategoryRepo, assets AssetRepo) error) error
 }
 
 type categoryRepo struct {
@@ -165,6 +169,19 @@ func (r *categoryRepo) ListPending(ctx context.Context, org uuid.UUID) ([]*model
 
 func (r *categoryRepo) Update(ctx context.Context, category *models.Category) error {
 	return r.db.WithContext(ctx).Save(category).Error
+}
+
+func (r *categoryRepo) AddUsage(ctx context.Context, id uuid.UUID, n int) error {
+	return r.db.WithContext(ctx).
+		Model(&models.Category{}).
+		Where("uuid = ?", id).
+		UpdateColumn("usage_count", gorm.Expr("usage_count + ?", n)).Error
+}
+
+func (r *categoryRepo) InTx(ctx context.Context, fn func(cats CategoryRepo, assets AssetRepo) error) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(&categoryRepo{db: tx}, &assetRepo{db: tx})
+	})
 }
 
 func (r *categoryRepo) IncrementUsage(ctx context.Context, id uuid.UUID) error {
