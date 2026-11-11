@@ -147,15 +147,21 @@ func (s *categoryService) ResolveOrCreateCategory(ctx context.Context, p *authz.
 		return existing, nil
 	}
 
-	// Создаём новую категорию L3 (пользовательскую)
+	// Новая категория. Тот, кто сам модерирует категории (categories.manage), создаёт сразу одобренную
+	// категорию организации (L2) — её видят все. Остальные — свою L3 на модерацию: видна только автору,
+	// пока менеджер не одобрит, не сольёт или не отклонит
 	org := p.OrgID
+	level, status := int16(3), models.CategoryStatusPending
+	if p.Has(authz.PermCategoriesManage) {
+		level, status = 2, models.CategoryStatusApproved
+	}
 	newCat := &models.Category{
 		UUID:              newID(),
 		OrganizationID:    &org,
 		Name:              cleanName,
 		NormalizedName:    normName,
-		Level:             3,
-		Status:            models.CategoryStatusPending,
+		Level:             level,
+		Status:            status,
 		CreatedBy:         &p.AccountID,
 		CreatedByPersonID: &p.PersonID,
 		UsageCount:        1,
@@ -230,12 +236,23 @@ func (s *categoryService) Moderate(ctx context.Context, p *authz.Principal, id u
 			cat.AdminComment = *req.AdminComment
 		}
 		cat.UpdatedAt = time.Now()
-		if err := s.categoryRepo.Update(ctx, cat); err != nil {
+		// Пометка «слита», перенос активов и счётчик — одной транзакцией, как в AdminMerge:
+		// ошибка переноса откатывает всё, а не оставляет активы в слитой категории
+		err = s.categoryRepo.InTx(ctx, func(cats repository.CategoryRepo, assets repository.AssetRepo) error {
+			if err := cats.Update(ctx, cat); err != nil {
+				return err
+			}
+			if err := assets.ReassignCategory(ctx, cat.UUID, targetCat.UUID, targetCat.Name); err != nil {
+				return fmt.Errorf("не удалось перенести активы в категорию «%s»: %w", targetCat.Name, err)
+			}
+			if cat.UsageCount > 0 {
+				return cats.AddUsage(ctx, targetCat.UUID, cat.UsageCount)
+			}
+			return nil
+		})
+		if err != nil {
 			return nil, err
 		}
-
-		// Перенаправляем все ассеты на целевую категорию
-		_ = s.assetRepo.ReassignCategory(ctx, cat.UUID, targetCat.UUID, targetCat.Name)
 
 	case "reject":
 		cat.Status = models.CategoryStatusRejected
