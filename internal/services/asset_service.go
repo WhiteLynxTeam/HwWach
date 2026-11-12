@@ -5,6 +5,7 @@ import (
 	"HwWach/internal/dto"
 	"HwWach/internal/models"
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -78,6 +79,17 @@ func NewAssetService(db *gorm.DB, roles RolesService, orgs OrgService, audit Aud
 // Тот, кто сфотографировал и завёл карточку, МОЛ автоматически не становится
 func (s *assetService) Create(ctx context.Context, p *authz.Principal, in CreateAssetInput) (*AssetView, error) {
 	a := in.Asset
+	// телефон повторяет отправку, если ответ потерялся в сети: карточка уже есть — отдаём её
+	if a.ClientID != nil {
+		var existing models.Asset
+		err := s.db.WithContext(ctx).Where("client_id = ? AND organization_id = ?", *a.ClientID, p.OrgID).First(&existing).Error
+		if err == nil {
+			return s.Get(ctx, p, existing.UUID)
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+	}
 	a.UUID = newID()
 	a.OrganizationID = p.OrgID
 	a.CreatedByAccountID = p.AccountID

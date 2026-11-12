@@ -51,6 +51,17 @@ func TestIntegrationLocations(t *testing.T) {
 	if a.Asset.LocationKind != models.AssetLocationPlace || a.Asset.Location == nil || a.Asset.Location.ID != room.ID {
 		t.Fatalf("asset location: %+v", a.Asset)
 	}
+	// повтор отправки с тем же client_id — та же карточка, а не ошибка
+	cid := uuid.New()
+	first, err := e.assets.Create(ctx, admin, CreateAssetInput{Asset: &models.Asset{Name: "Монитор", Category: "Монитор", ClientID: &cid}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := e.assets.Create(ctx, admin, CreateAssetInput{Asset: &models.Asset{Name: "Монитор", Category: "Монитор", ClientID: &cid}})
+	if err != nil || second.Asset.UUID != first.Asset.UUID {
+		t.Fatalf("retry with same client_id: %v", err)
+	}
+
 	phone, err := e.assets.Create(ctx, admin, CreateAssetInput{
 		Asset: &models.Asset{Name: "Смартфон", Category: "Телефон"}, LocationKind: models.AssetLocationPortable,
 	})
