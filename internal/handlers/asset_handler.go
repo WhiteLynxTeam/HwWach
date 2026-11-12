@@ -140,6 +140,11 @@ func (a assetHandler) CreateAsset(c *gin.Context) {
 			in.MolPersonID = &id
 		}
 	}
+	in.LocationKind = models.AssetLocationKind(req.LocationKind)
+	if in.LocationChain, err = parseLocationChain(req.Location); err != nil {
+		writeErr(c, err)
+		return
+	}
 
 	view, err := a.assetSvc.Create(c.Request.Context(), p, in)
 	if err != nil {
@@ -165,6 +170,12 @@ func assetFilterFromQuery(c *gin.Context) services.AssetFilter {
 			f.MolPersonID = &id
 		}
 	}
+	if s := c.Query("location_id"); s != "" {
+		if id, err := uuid.Parse(s); err == nil {
+			f.LocationID = &id
+		}
+	}
+	f.LocationKind = c.Query("location_kind")
 	return f
 }
 
@@ -357,7 +368,31 @@ func (a assetHandler) UpdateAsset(c *gin.Context) {
 		req.CategoryUUID = &catUUIDStr
 	}
 
-	view, err := a.assetSvc.Update(c.Request.Context(), p, id, &req)
+	in := services.UpdateAssetInput{Req: &req}
+	if req.LocationKind != nil {
+		kind := models.AssetLocationKind(*req.LocationKind)
+		in.LocationKind = &kind
+		chain, err := parseLocationChain(req.Location)
+		if err != nil {
+			writeErr(c, err)
+			return
+		}
+		in.LocationChain = chain
+	}
+	if req.PhotoClientIDs != nil {
+		ids := make([]uuid.UUID, 0, len(*req.PhotoClientIDs))
+		for _, s := range *req.PhotoClientIDs {
+			parsed, err := uuid.Parse(s)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid photo_client_id: " + err.Error()})
+				return
+			}
+			ids = append(ids, parsed)
+		}
+		in.PhotoClientIDs = &ids
+	}
+
+	view, err := a.assetSvc.Update(c.Request.Context(), p, id, in)
 	if err != nil {
 		writeErr(c, err)
 		return

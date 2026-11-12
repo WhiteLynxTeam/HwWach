@@ -105,7 +105,7 @@ func (s *assetChangeRequestService) ApproveRequest(ctx context.Context, p *authz
 			// применяем от имени проверяющего: у него assets.manage или review
 			reviewer := *p
 			reviewer.Perms = map[string]bool{authz.PermAssetsManage: true, authz.PermAssetsViewAll: true}
-			if _, err := s.assets.Update(ctx, &reviewer, changeReq.AssetUUID, &updateData); err != nil {
+			if _, err := s.assets.Update(ctx, &reviewer, changeReq.AssetUUID, UpdateAssetInput{Req: &updateData}); err != nil {
 				var appErr *AppError
 				if errors.As(err, &appErr) {
 					return err

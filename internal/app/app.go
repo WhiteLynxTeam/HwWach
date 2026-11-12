@@ -116,6 +116,7 @@ func NewApp() (*App, error) {
 		ChangeRequest: handlers.NewAssetChangeRequestHandler(changeReqSvc),
 		Category:      handlers.NewCategoryHandler(categorySvc),
 		Audit:         handlers.NewAuditHandler(auditSvc),
+		Location:      handlers.NewLocationHandler(services.NewLocationService(db)),
 		Internal:      handlers.NewInternalHandler(rolesSvc, orgSvc),
 	}, middleware.JWTMiddleware([]byte(cfg.JWTSecret)), middleware.InternalKeyMiddleware(cfg.InternalAPIKey))
 

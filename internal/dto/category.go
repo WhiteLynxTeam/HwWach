@@ -62,14 +62,14 @@ type AdminUpdateCategoryRequest struct {
 	Level              int16   `json:"level" binding:"required"`
 	Status             *string `json:"status,omitempty"`
 	AdminComment       string  `json:"admin_comment,omitempty"`
-	UpdateLinkedAssets bool    `json:"update_linked_assets"`
+	UpdateLinkedAssets bool    `json:"update_linked_assets"` // устарело: игнорируется, активы обновляются всегда
 }
 
 // AdminMergeCategoryRequest запрос администратора на объединение категорий
 type AdminMergeCategoryRequest struct {
 	TargetCategoryUUID string  `json:"target_category_uuid" binding:"required"`
 	AdminComment       *string `json:"admin_comment,omitempty"`
-	UpdateLinkedAssets bool    `json:"update_linked_assets"`
+	UpdateLinkedAssets bool    `json:"update_linked_assets"` // устарело: игнорируется, активы обновляются всегда
 }
 
 // CategoryAffectedResponse информация о связанных ассетах категории
