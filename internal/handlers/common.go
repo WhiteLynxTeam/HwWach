@@ -110,8 +110,44 @@ func assetToResponse(asset *models.Asset) dto.AssetResponse {
 		VerifiedAt:       fmtTime(asset.VerifiedAt),
 		CategoryUUID:     uuidStr(asset.CategoryUUID),
 		ClientID:         uuidStr(asset.ClientID),
+		LocationKind:     string(asset.LocationKind),
+		LocationID:       uuidStr(asset.LocationID),
+	}
+	if resp.LocationKind == "" {
+		resp.LocationKind = string(models.AssetLocationUnset)
+	}
+	if asset.Location != nil {
+		path := asset.Location.Path
+		resp.LocationPath = &path
 	}
 	return resp
+}
+
+func locationToResponse(l *models.Location) dto.LocationResponse {
+	return dto.LocationResponse{
+		ID:       l.ID.String(),
+		ParentID: uuidStr(l.ParentID),
+		Name:     l.Name,
+		Kind:     string(l.Kind),
+		Path:     l.Path,
+	}
+}
+
+// parseLocationChain узлы места из запроса
+func parseLocationChain(nodes []dto.LocationNodeDTO) ([]services.LocationNode, error) {
+	out := make([]services.LocationNode, 0, len(nodes))
+	for _, n := range nodes {
+		node := services.LocationNode{Name: n.Name, Kind: models.LocationKind(n.Kind)}
+		if n.ID != nil && *n.ID != "" {
+			id, err := uuid.Parse(*n.ID)
+			if err != nil {
+				return nil, services.BadRequest("invalid location id")
+			}
+			node.ID = &id
+		}
+		out = append(out, node)
+	}
+	return out, nil
 }
 
 func viewToResponse(v *services.AssetView) dto.AssetResponse {

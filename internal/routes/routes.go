@@ -16,6 +16,7 @@ type Handlers struct {
 	ChangeRequest handlers.AssetChangeRequestHandler
 	Category      handlers.CategoryHandler
 	Audit         handlers.AuditHandler
+	Location      handlers.LocationHandler
 	Internal      handlers.InternalHandler
 }
 
@@ -84,6 +85,12 @@ func SetupRoutes(r *gin.Engine, h Handlers, jwtMiddleware, internalMiddleware gi
 		categories.PUT("/:id", h.Category.AdminUpdate)
 		categories.POST("/:id/merge", h.Category.AdminMerge)
 		categories.PATCH("/:id/moderate", h.Category.Moderate)
+	}
+
+	locations := r.Group("/locations", jwtMiddleware)
+	{
+		locations.GET("", h.Location.List)
+		locations.POST("", h.Location.Create)
 	}
 
 	r.GET("/photos/:id/download", h.Photo.DownloadPhoto)

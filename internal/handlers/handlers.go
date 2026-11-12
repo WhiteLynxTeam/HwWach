@@ -64,6 +64,11 @@ type CategoryHandler interface {
 	AdminMerge(c *gin.Context)
 }
 
+type LocationHandler interface {
+	List(c *gin.Context)
+	Create(c *gin.Context)
+}
+
 type AuditHandler interface {
 	List(c *gin.Context)
 }

@@ -16,6 +16,18 @@ type CreateAssetRequest struct {
 	PhotoClientIDs []string `json:"photo_client_ids" example:"[\"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx\"]"`
 	// МОЛ: не передан — создатель, если он МОЛ; "" — без МОЛ; uuid — этот человек (другого — только админ)
 	MolPersonID *string `json:"mol_person_id,omitempty"`
+	// unset / place / none / portable; пустой — place, если передано место, иначе unset
+	LocationKind string `json:"location_kind,omitempty" example:"place"`
+	// место от корня к листу; узлы с id из справочника можно передавать без имени
+	Location []LocationNodeDTO `json:"location,omitempty"`
+}
+
+// LocationNodeDTO уровень места. id — с телефона или из справочника; нет в справочнике — заводится по имени
+type LocationNodeDTO struct {
+	ID   *string `json:"id,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
+	Name string  `json:"name,omitempty" example:"Ферма 700"`
+	// settlement / site / room / other; пусто — по глубине
+	Kind string `json:"kind,omitempty" example:"site"`
 }
 
 // UpdateAssetRequest частичное обновление карточки (статусы — через /status и ремонт)
@@ -26,6 +38,25 @@ type UpdateAssetRequest struct {
 	CategoryUUID *string `json:"category_uuid,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
 	CategoryText *string `json:"category_text,omitempty" example:"ноутбук"`
 	Description  *string `json:"description,omitempty" example:"MacBook Pro 16 2023"`
+	// передан — место меняется (как при создании)
+	LocationKind *string           `json:"location_kind,omitempty" example:"place"`
+	Location     []LocationNodeDTO `json:"location,omitempty"`
+	// передан — полный новый набор фото карточки
+	PhotoClientIDs *[]string `json:"photo_client_ids,omitempty"`
+}
+
+// CreateLocationRequest завести место (или найти готовое) по цепочке от корня
+type CreateLocationRequest struct {
+	Chain []LocationNodeDTO `json:"chain" binding:"required,min=1"`
+}
+
+// LocationResponse место справочника
+type LocationResponse struct {
+	ID       string  `json:"id"`
+	ParentID *string `json:"parent_id,omitempty"`
+	Name     string  `json:"name"`
+	Kind     string  `json:"kind"`
+	Path     string  `json:"path"`
 }
 
 // AssetRoleResponse действующая бизнес-роль на активе
@@ -70,6 +101,9 @@ type AssetResponse struct {
 	Category          string              `json:"category"`
 	CategoryUUID      *string             `json:"category_uuid,omitempty" example:"0194f7b0-1234-7xxx-xxxx-xxxxxxxxxxxx"`
 	Description       string              `json:"description"`
+	LocationKind      string              `json:"location_kind" example:"place"`
+	LocationID        *string             `json:"location_id,omitempty"`
+	LocationPath      *string             `json:"location_path,omitempty" example:"Каленковичи / Ферма 700 / Кабинет зав. фермы"`
 	AccountingStatus  string              `json:"accounting_status" example:"in_use"`
 	Condition         string              `json:"condition" example:"ok"`
 	ModerationStatus  string              `json:"moderation_status" example:"approved"`

@@ -83,6 +83,7 @@ func (s *orgService) DeleteOrganizationData(ctx context.Context, org uuid.UUID) 
 			"DELETE FROM asset_photos WHERE asset_uuid IN (SELECT uuid FROM assets WHERE organization_id = ?)",
 			"DELETE FROM photos WHERE organization_id = ?",
 			"DELETE FROM assets WHERE organization_id = ?",
+			"DELETE FROM locations WHERE organization_id = ?",
 			"DELETE FROM categories WHERE organization_id = ?",
 			"DELETE FROM audit_log WHERE organization_id = ?",
 			"DELETE FROM organization_state WHERE organization_id = ?",

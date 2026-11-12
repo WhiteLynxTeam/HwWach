@@ -25,6 +25,17 @@ type CreateAssetInput struct {
 	PhotoClientIDs []uuid.UUID // client_id фото с телефона
 	MolPersonID *uuid.UUID // nil — по умолчанию (создатель, если он МОЛ)
 	NoMol       bool       // явно «без МОЛ»
+	// место: kind пустой — по цепочке (есть — place, нет — не указано)
+	LocationKind  models.AssetLocationKind
+	LocationChain []LocationNode
+}
+
+// UpdateAssetInput правка карточки: nil — поле не меняется
+type UpdateAssetInput struct {
+	Req            *dto.UpdateAssetRequest
+	LocationKind   *models.AssetLocationKind
+	LocationChain  []LocationNode
+	PhotoClientIDs *[]uuid.UUID // полный новый набор фото
 }
 
 type AssetFilter struct {
@@ -37,13 +48,15 @@ type AssetFilter struct {
 	Overdue          bool
 	Query            string
 	IncludeInactive  bool // списанные и утерянные по умолчанию скрыты
+	LocationID       *uuid.UUID // вместе с вложенными местами
+	LocationKind     string
 }
 
 type AssetService interface {
 	Create(ctx context.Context, p *authz.Principal, in CreateAssetInput) (*AssetView, error)
 	Get(ctx context.Context, p *authz.Principal, id uuid.UUID) (*AssetView, error)
 	List(ctx context.Context, p *authz.Principal, f AssetFilter, page, limit int) ([]*AssetView, int64, error)
-	Update(ctx context.Context, p *authz.Principal, id uuid.UUID, req *dto.UpdateAssetRequest) (*AssetView, error)
+	Update(ctx context.Context, p *authz.Principal, id uuid.UUID, in UpdateAssetInput) (*AssetView, error)
 	Delete(ctx context.Context, p *authz.Principal, id uuid.UUID) error
 	Moderate(ctx context.Context, p *authz.Principal, id uuid.UUID, approve bool, comment string, molPersonID *uuid.UUID) (*AssetView, error)
 	IsInventoryNumUnique(ctx context.Context, org uuid.UUID, num string, exclude *uuid.UUID) (bool, error)
@@ -119,7 +132,10 @@ func (s *assetService) Create(ctx context.Context, p *authz.Principal, in Create
 			}
 			a.Photos = photos
 		}
-		if err := tx.Create(a).Error; err != nil {
+		if err := applyAssetLocation(ctx, tx, p, a, in.LocationKind, in.LocationChain); err != nil {
+			return err
+		}
+		if err := tx.Omit("Location").Create(a).Error; err != nil {
 			if isUniqueViolation(err) {
 				return Conflict("Инвентарный номер уже используется в организации")
 			}
@@ -155,6 +171,12 @@ func (s *assetService) Get(ctx context.Context, p *authz.Principal, id uuid.UUID
 	if err := s.db.WithContext(ctx).Model(acc.Asset).Association("Photos").Find(&acc.Asset.Photos); err != nil {
 		return nil, err
 	}
+	if acc.Asset.LocationID != nil {
+		var loc models.Location
+		if err := s.db.WithContext(ctx).Unscoped().Where("id = ?", *acc.Asset.LocationID).First(&loc).Error; err == nil {
+			acc.Asset.Location = &loc
+		}
+	}
 	view := &AssetView{Asset: acc.Asset, Mol: acc.Mol, Users: acc.Users}
 	var repair models.AssetRepair
 	if err := s.db.WithContext(ctx).Where("asset_id = ? AND returned_at IS NULL", id).First(&repair).Error; err == nil {
@@ -187,12 +209,20 @@ func (s *assetService) List(ctx context.Context, p *authz.Principal, f AssetFilt
 	if f.Mine {
 		q = q.Where("EXISTS (SELECT 1 FROM asset_roles r WHERE r.asset_id = assets.uuid AND r.ended_at IS NULL AND r.person_id = ?)", p.PersonID)
 	}
+	if f.LocationID != nil {
+		q = q.Where("assets.location_id IN ("+locationSubtreeSQL+")", *f.LocationID, p.OrgID)
+	}
+	if f.LocationKind != "" {
+		q = q.Where("assets.location_kind = ?", f.LocationKind)
+	}
 	if f.Overdue {
 		q = q.Where("EXISTS (SELECT 1 FROM asset_repairs rp WHERE rp.asset_id = assets.uuid AND rp.returned_at IS NULL AND rp.expected_return_at < now())")
 	}
 	if qs := strings.TrimSpace(f.Query); qs != "" {
 		like := "%" + strings.ToLower(qs) + "%"
-		q = q.Where("(lower(assets.name) LIKE ? OR lower(coalesce(assets.inventory_num, '')) LIKE ? OR lower(assets.category) LIKE ?)", like, like, like)
+		q = q.Where("(lower(assets.name) LIKE ? OR lower(coalesce(assets.inventory_num, '')) LIKE ? OR lower(assets.category) LIKE ?"+
+			" OR lower(assets.description) LIKE ?"+
+			" OR EXISTS (SELECT 1 FROM locations l WHERE l.id = assets.location_id AND lower(l.path) LIKE ?))", like, like, like, like, like)
 	}
 
 	var total int64
@@ -206,7 +236,8 @@ func (s *assetService) List(ctx context.Context, p *authz.Principal, f AssetFilt
 		page = 1
 	}
 	var assets []*models.Asset
-	if err := q.Order("assets.created_at DESC").Limit(limit).Offset((page - 1) * limit).Preload("Photos").Find(&assets).Error; err != nil {
+	if err := q.Order("assets.created_at DESC").Limit(limit).Offset((page - 1) * limit).Preload("Photos").
+		Preload("Location", func(db *gorm.DB) *gorm.DB { return db.Unscoped() }).Find(&assets).Error; err != nil {
 		return nil, 0, err
 	}
 	views, err := s.withRoles(ctx, assets)
@@ -253,7 +284,11 @@ func (s *assetService) withRoles(ctx context.Context, assets []*models.Asset) ([
 
 // Update карточку до одобрения правит тот, кто её завёл; после — admin / менеджер (assets.manage).
 // Статусы здесь не меняются — для них /status и ремонт
-func (s *assetService) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, req *dto.UpdateAssetRequest) (*AssetView, error) {
+func (s *assetService) Update(ctx context.Context, p *authz.Principal, id uuid.UUID, in UpdateAssetInput) (*AssetView, error) {
+	req := in.Req
+	if req == nil {
+		req = &dto.UpdateAssetRequest{}
+	}
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		acc, err := loadAsset(ctx, tx, p, id, true)
 		if err != nil {
@@ -291,7 +326,17 @@ func (s *assetService) Update(ctx context.Context, p *authz.Principal, id uuid.U
 		if req.Description != nil {
 			a.Description = *req.Description
 		}
-		if err := tx.Omit("Photos", "Requests", "CategoryObj").Save(a).Error; err != nil {
+		if in.LocationKind != nil {
+			if err := applyAssetLocation(ctx, tx, p, a, *in.LocationKind, in.LocationChain); err != nil {
+				return err
+			}
+		}
+		if in.PhotoClientIDs != nil {
+			if err := replaceAssetPhotos(ctx, tx, p, a, *in.PhotoClientIDs); err != nil {
+				return err
+			}
+		}
+		if err := tx.Omit("Photos", "Requests", "CategoryObj", "Location").Save(a).Error; err != nil {
 			if isUniqueViolation(err) {
 				return Conflict("Инвентарный номер уже используется в организации")
 			}
@@ -404,4 +449,32 @@ func (s *assetService) ListPhotos(ctx context.Context, p *authz.Principal, id uu
 		Where("asset_photos.asset_uuid = ?", id).
 		Find(&photos).Error
 	return photos, err
+}
+
+// replaceAssetPhotos новый набор фото карточки. Добавлять можно свои снимки; админ (assets.manage) —
+// любые снимки организации. Уже прикреплённые остаются, чьи бы они ни были
+func replaceAssetPhotos(ctx context.Context, tx *gorm.DB, p *authz.Principal, a *models.Asset, clientIDs []uuid.UUID) error {
+	photos := []models.Photo{}
+	if len(clientIDs) > 0 {
+		if err := tx.WithContext(ctx).Where("client_id IN ? AND organization_id = ?", clientIDs, p.OrgID).Find(&photos).Error; err != nil {
+			return err
+		}
+		if len(photos) != len(clientIDs) {
+			return BadRequest("some photo_client_ids were not found")
+		}
+	}
+	var current []models.Photo
+	if err := tx.WithContext(ctx).Model(a).Association("Photos").Find(&current); err != nil {
+		return err
+	}
+	attached := map[uuid.UUID]bool{}
+	for _, ph := range current {
+		attached[ph.UUID] = true
+	}
+	for _, ph := range photos {
+		if !attached[ph.UUID] && ph.AccountUUID != p.AccountID && !p.Has(authz.PermAssetsManage) {
+			return Forbidden("photo does not belong to the user")
+		}
+	}
+	return tx.WithContext(ctx).Model(a).Association("Photos").Replace(photos)
 }

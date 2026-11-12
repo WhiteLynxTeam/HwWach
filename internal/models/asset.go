@@ -65,6 +65,9 @@ type Asset struct {
 	CategoryUUID       *uuid.UUID `gorm:"type:uuid;index;column:category_uuid" json:"category_uuid,omitempty" swaggertype:"string"`
 	CategoryObj        *Category  `gorm:"foreignKey:CategoryUUID" json:"category_obj,omitempty"`
 	Description        string     `gorm:"type:text" json:"description"`
+	LocationKind       AssetLocationKind `gorm:"type:varchar(20);not null;default:'unset'" json:"location_kind"`
+	LocationID         *uuid.UUID        `gorm:"type:uuid" json:"location_id,omitempty" swaggertype:"string"`
+	Location           *Location         `gorm:"foreignKey:LocationID" json:"location,omitempty"`
 	CreatedByAccountID uuid.UUID  `gorm:"type:uuid;not null" json:"created_by_account_id" swaggertype:"string"` // кто завёл карточку
 	CreatedByPersonID  uuid.UUID  `gorm:"type:uuid;not null" json:"created_by_person_id" swaggertype:"string"`
 
